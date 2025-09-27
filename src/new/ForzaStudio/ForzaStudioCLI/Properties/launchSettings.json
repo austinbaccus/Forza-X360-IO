@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ForzaStudioCLI": {
+      "commandName": "Project",
+      "commandLineArgs": "\"X:\\3d\\games\\forza\\games\\fm3\\fm3_d1\\fm3\\Media\\Tracks\\CrownJewel\\bin.zip\""
+    }
+  }
+}
