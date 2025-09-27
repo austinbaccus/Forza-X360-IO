@@ -1,0 +1,1 @@
+X:\source\repos\forza-studio\src\new\ForzaStudio\ForzaStudioWinUI\ForzaStudioWinUI.csproj;x64

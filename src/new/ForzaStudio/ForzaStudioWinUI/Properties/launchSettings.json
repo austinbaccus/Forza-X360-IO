@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ForzaStudioWinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ForzaStudioWinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

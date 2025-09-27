@@ -1,0 +1,6 @@
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.csproj.AssemblyReference.cache
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.ForzaStudioForm.resources
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.csproj.GenerateResource.cache
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.GeneratedMSBuildEditorConfig.editorconfig
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.csproj.CoreCompileInputs.cache
+X:\source\repos\forza-studio\src\old\obj\Debug\net20\ForzaStudio.sourcelink.json

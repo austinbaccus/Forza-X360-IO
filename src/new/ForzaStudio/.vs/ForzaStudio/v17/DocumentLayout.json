@@ -1,0 +1,54 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "X:\\source\\repos\\forza-studio\\src\\new\\ForzaStudio\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{73D88F47-DAD1-4C55-A010-F36C7D37B26B}|ForzaStudioWinUI\\ForzaStudioWinUI.csproj|x:\\source\\repos\\forza-studio\\src\\new\\forzastudio\\forzastudiowinui\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{73D88F47-DAD1-4C55-A010-F36C7D37B26B}|ForzaStudioWinUI\\ForzaStudioWinUI.csproj|solutionrelative:forzastudiowinui\\mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{73D88F47-DAD1-4C55-A010-F36C7D37B26B}|ForzaStudioWinUI\\ForzaStudioWinUI.csproj|x:\\source\\repos\\forza-studio\\src\\new\\forzastudio\\forzastudiowinui\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{73D88F47-DAD1-4C55-A010-F36C7D37B26B}|ForzaStudioWinUI\\ForzaStudioWinUI.csproj|solutionrelative:forzastudiowinui\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 275,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "MainWindow.xaml",
+              "DocumentMoniker": "X:\\source\\repos\\forza-studio\\src\\new\\ForzaStudio\\ForzaStudioWinUI\\MainWindow.xaml",
+              "RelativeDocumentMoniker": "ForzaStudioWinUI\\MainWindow.xaml",
+              "ToolTip": "X:\\source\\repos\\forza-studio\\src\\new\\ForzaStudio\\ForzaStudioWinUI\\MainWindow.xaml",
+              "RelativeToolTip": "ForzaStudioWinUI\\MainWindow.xaml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB8AAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2025-09-26T23:31:48.744Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "MainWindow.xaml.cs",
+              "DocumentMoniker": "X:\\source\\repos\\forza-studio\\src\\new\\ForzaStudio\\ForzaStudioWinUI\\MainWindow.xaml.cs",
+              "RelativeDocumentMoniker": "ForzaStudioWinUI\\MainWindow.xaml.cs",
+              "ToolTip": "X:\\source\\repos\\forza-studio\\src\\new\\ForzaStudio\\ForzaStudioWinUI\\MainWindow.xaml.cs",
+              "RelativeToolTip": "ForzaStudioWinUI\\MainWindow.xaml.cs",
+              "ViewState": "AgIAAAsAAAAAAAAAAAAUwB4AAAAWAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-09-26T22:19:12.177Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
