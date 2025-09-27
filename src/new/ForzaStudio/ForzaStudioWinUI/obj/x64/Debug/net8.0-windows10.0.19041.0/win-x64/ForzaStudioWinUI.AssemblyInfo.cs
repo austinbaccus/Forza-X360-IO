@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ForzaStudioWinUI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+87642982cf51cb1ba4c851c4502a4bd530126970")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7db6b097f3e02435ae69d764cb5eff7d0fa92413")]
 [assembly: System.Reflection.AssemblyProductAttribute("ForzaStudioWinUI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ForzaStudioWinUI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
