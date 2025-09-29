@@ -52,7 +52,7 @@ class Bix():
                 blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
                 dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
             elif format == 438305106: # D3DFMT_DXT1
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
                 blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
                 dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
             elif format == 438305147: # D3DFMT_DXT5A
