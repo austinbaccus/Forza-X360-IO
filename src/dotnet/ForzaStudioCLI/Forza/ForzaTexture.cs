@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 
 namespace Forza
@@ -96,6 +97,40 @@ namespace Forza
                 }
             }
             throw new ArgumentException();
+        }
+
+        public uint GetFormat()
+        {
+            Path.GetDirectoryName(base.FilePath);
+            string text = base.FilePath.Replace("_b.bix", string.Empty).Replace(".bix", string.Empty);
+            string text2 = text + ".bix";
+            byte[] array = null;
+            if (Utilities.IsNullOrWhiteSpace(base.ArchivePath))
+            {
+                using (FileStream fileStream = new FileStream(text2, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    array = new byte[fileStream.Length];
+                    fileStream.Read(array, 0, array.Length);
+                }
+            }
+            else
+            {
+                array = ForzaArchive.GetFileData(base.ArchivePath, text2);
+            }
+            uint format;
+            using (EndianStream endianStream = new EndianStream(array, EndianType.BigEndian))
+            {
+                uint num = endianStream.ReadUInt32();
+                if (num != 1112102960 && num != 1112102961)
+                {
+                    throw new NotSupportedException("Unrecognized bix file format.");
+                }
+                endianStream.ReadUInt32();
+                endianStream.ReadUInt32();
+                endianStream.ReadUInt32();
+                format = endianStream.ReadUInt32();
+            }
+            return format;
         }
 
         public Image GetImage()

@@ -1,6 +1,6 @@
 from pathlib import Path
 from PIL import Image
-import struct, subprocess, tempfile, os, sys
+import struct
 from utils.deswizzle import Deswizzler
 
 class Bix():
@@ -25,6 +25,10 @@ class Bix():
 
         width: int = None
         height: int = None
+        levels: int = None
+        format: int = None
+        total_size: int = None
+        main_size: int = None
 
         # read file `a` (Big Endian format)
         with open(file_a_path, "rb") as f:
@@ -34,16 +38,35 @@ class Bix():
 
             width = int.from_bytes(f.read(4), byteorder="big", signed=False)
             height = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            levels = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            format = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            total_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            main_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
         # read file `b`
         with open(file_b_path, "rb") as f:
-
             dumped_image_data = bytearray(Path(file_b_path).read_bytes())
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks_dxt5 = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
-            
-            dds_bc3_dxt5 = Bix.wrap_as_dds_dx5_bc3_linear(blocks_dxt5, width, height)
-            with open(filename + ".dds",'wb') as f: f.write(dds_bc3_dxt5)
+
+            if format == 438305108: # D3DFMT_DXT5
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
+                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
+            elif format == 438305106: # D3DFMT_DXT1
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
+                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
+            elif format == 438305147: # D3DFMT_DXT5A
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5A")
+                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
+            elif format == 438305137: # D3DFMT_DXN
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXN")
+                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
+            else:
+                raise ValueError("Unsupported deswizzling format!")
+
+            with open(filename + ".dds",'wb') as f: f.write(dds)
 
     def wrap_as_dds_dx10_bc(fmt_dxgi: int, blocks_linear: bytes, width: int, height: int) -> bytes:
         # DXGI_FORMAT values: BC1=71, BC2=74, BC3=77, BC4U=80, BC5U=83, BC6H_UF16=95, BC7=98

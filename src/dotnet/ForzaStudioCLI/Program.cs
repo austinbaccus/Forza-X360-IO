@@ -9,22 +9,41 @@ namespace Forza
     {
         public static List<ForzaTexture> Textures = new();
         public static List<ForzaMesh> Meshes = new();
+        public static HashSet<uint> Formats = new();
 
         static void Main(string[] args)
         {
+            //ImportForzaTexture(@"X:\3d\games\forza\games\fm3\fm3_d1\fm3\Media\Tracks\_decompressed\Amalfi\bin", "_0x00000A53.bix");
+            //Textures[0].GetImage().Save("test.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
+            
+
             if (args.Length == 0)
             {
                 Console.WriteLine("Usage: FilePathExample <file-path>");
                 return;
             }
 
-            string json = File.ReadAllText(args[1]);
-            dynamic pvs = Pvs.ReadPvs(json);
-
             UnpackZip(args[0]);
+            //UnpackZip(@"X:\3d\games\forza\games\fm3\fm3_d1\fm3\Media\Tracks\MapleValley\bin.zip");
 
-            ExportWavefrontObj();
-            // Textures[0].GetImage().Save("test.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
+            //ExportWavefrontObj();
+            for (int i = 0; i < Textures.Count; i++)
+            {
+                if (Formats.Add(Textures[i].GetFormat()))
+                {
+                    Console.WriteLine($"This image has a new format value! {Textures[i].FileName} {Textures[i].GetFormat()}");
+                }
+            }
+
+            foreach (uint i in Formats)
+            {
+                Console.WriteLine(i);
+            }
+            Console.WriteLine();
+
+            //ForzaTexture a5e_a = Textures[1423];
+            //a5e_a.GetImage();
+            //Textures[1423].GetImage().Save("test.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
         }
 
         private static void UnpackZip(string archivePath)

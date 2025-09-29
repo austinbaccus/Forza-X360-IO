@@ -1,11 +1,7 @@
 ﻿using SharpDX.Direct3D9;
 using System;
 
-<<<<<<< HEAD:src/dotnet/ForzaStudioCLI/Forza/ForzaMesh.cs
 namespace Forza
-=======
-namespace ForzaStudioWinUI.Forza
->>>>>>> a29b15f28bd03977571690db830a7d6ffe29cb82:src/new/ForzaStudio/ForzaStudioWinUI/Forza/ForzaMesh.cs
 {
     public class ForzaMesh : IDisposable
     {
