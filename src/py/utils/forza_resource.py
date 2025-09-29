@@ -3,7 +3,6 @@ import io
 import uuid
 from typing import Optional
 from utils.forza_version import ForzaVersion
-from utils.forza_archive import ForzaArchive
 
 class ForzaResource():
     def __init__(self, file_path: str, archive_path: str = None) -> None:
