@@ -20,6 +20,6 @@ class RmbBin:
 
             section_count: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
-            for i in section_count:
+            for i in range(section_count):
                 self.track_sections.append(ForzaTrackSection)
 
