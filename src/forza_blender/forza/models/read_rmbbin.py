@@ -1,5 +1,5 @@
-from utils.forza_version import ForzaVersion
-from models.forza_track_section import ForzaTrackSection
+from ..utils.forza_version import ForzaVersion
+from .forza_track_section import ForzaTrackSection
 
 class RmbBin:
     def __init__(self, filepath: str):

@@ -1,6 +1,6 @@
 import struct
 from mathutils import Vector # type: ignore
-from forza.models.forza_vertex_type import ForzaVertexType
+from .forza_vertex_type import ForzaVertexType
 
 class ForzaVertex:
     def __init__(self, f, size: int, vertex_type: ForzaVertexType):

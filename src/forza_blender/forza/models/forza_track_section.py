@@ -1,10 +1,10 @@
 import struct
 from typing import List
-import forza.utils.mesh_utils
-from forza.models.forza_track_subsection import ForzaTrackSubSection
-from forza.models.forza_vertex import ForzaVertex
-from forza.models.forza_vertex_type import ForzaVertexType
-from forza.models.index_type import IndexType
+from ..utils.mesh_utils import generate_triangle_list, generate_triangle_list, generate_vertices
+from .forza_track_subsection import ForzaTrackSubSection
+from .forza_vertex import ForzaVertex
+from .forza_vertex_type import ForzaVertexType
+from .index_type import IndexType
 
 class ForzaTrackSection:
     def __init__(self, f):
@@ -45,7 +45,7 @@ class ForzaTrackSection:
             sub = ForzaTrackSubSection(f)
 
             # generate per-subsection vertices
-            sub.vertices = forza.utils.mesh_utils.generate_vertices(base_vertices, sub.indices)
+            sub.vertices = generate_vertices(base_vertices, sub.indices)
 
             # uv adjustments
             for v in sub.vertices:
@@ -58,6 +58,6 @@ class ForzaTrackSection:
 
             # convert tristrips to triangle list if needed
             if sub.index_type == IndexType.TriStrip:
-                sub.indices = forza.utils.mesh_utils.generate_triangle_list(sub.indices, sub.face_count)
+                sub.indices = generate_triangle_list(sub.indices, sub.face_count)
 
             self.subsections[j] = sub

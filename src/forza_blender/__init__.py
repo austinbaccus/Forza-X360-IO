@@ -56,4 +56,4 @@ def unregister():
     if hasattr(bpy.types.Scene, "forza_last_folder"):
         del bpy.types.Scene.forza_last_folder
     if hasattr(bpy.types.Scene, "forza_selection"):
-        del bpy.types.Scene.myaddon_f
+        del bpy.types.Scene.forza_selection

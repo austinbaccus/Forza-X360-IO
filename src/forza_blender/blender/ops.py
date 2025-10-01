@@ -2,7 +2,7 @@ from pathlib import Path
 import bpy
 from bpy.types import Operator
 from bpy.props import StringProperty
-from forza.models.forza_mesh import ForzaMesh
+from forza_blender.forza.models.forza_mesh import ForzaMesh
 
 class FORZA_OT_import(Operator):
     bl_idname = "forza.import"
@@ -13,6 +13,7 @@ class FORZA_OT_import(Operator):
             import_fm3(context, context.scene.forza_last_folder)
         if context.scene.forza_selection == "FM4":
             import_fm4(context, context.scene.forza_last_folder)
+        return {'FINISHED'}
 
 class FORZA_OT_pick_folder(Operator):
     """Choose a folder and return its path"""
@@ -51,7 +52,13 @@ def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
 def import_fm3(context, track_path: Path):
-    from forza.models.read_rmbbin import RmbBin
+    from ..forza.models.read_rmbbin import RmbBin
+    if type(track_path) is not Path:
+        print("track_path is not the right type")
+        print("track_path value: " + track_path)
+        print("Converting track_path to Path object...")
+        #raise TypeError("Path needs to be a Path object, not " + type(track_path))
+        track_path = Path(track_path)
 
     # get paths to important folders and files
     path_bin: Path = track_path / "bin"
@@ -78,7 +85,7 @@ def import_fm3(context, track_path: Path):
                 meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
                 track_meshes.append(ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices))
 
-    print(len(track_meshes))
+    print("track_meshes length: " + str(len(track_meshes)))
 
 def import_fm4(context, track_path: Path):
     raise RuntimeError("FM4 is not supported.")

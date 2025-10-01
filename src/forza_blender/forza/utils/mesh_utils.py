@@ -1,5 +1,5 @@
-from forza.models.index_type import IndexType
-from forza.models.forza_vertex import ForzaVertex
+from ..models.index_type import IndexType
+from ..models.forza_vertex import ForzaVertex
 from typing import List, Dict
 
 def calculate_face_count(indices, index_type):

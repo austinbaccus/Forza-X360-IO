@@ -1,4 +1,4 @@
-from models.forza_vertex import ForzaVertex
+from .forza_vertex import ForzaVertex
 
 class ForzaMesh:
     def __init__(self, name: str, material_name: str, indices: list[int], vertices: list[ForzaVertex]):
