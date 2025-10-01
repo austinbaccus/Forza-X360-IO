@@ -4,13 +4,13 @@ from forza.models.forza_vertex_type import ForzaVertexType
 
 class ForzaVertex:
     def __init__(self, f, size: int, vertex_type: ForzaVertexType):
-        self.position = Vector((0.0,0.0,0.0))
-        self.texture0 = Vector((0.0,0.0))
-        self.texture1 = Vector((0.0,0.0))
-        self.normal = Vector((0.0,0.0,0.0))
+        self.position: Vector = Vector((0.0,0.0,0.0))
+        self.texture0: Vector = Vector((0.0,0.0))
+        self.texture1: Vector = Vector((0.0,0.0))
+        self.normal: Vector = Vector((0.0,0.0,0.0))
         self.read_vertex(f, size, vertex_type)
 
-        # TODO convert to blender vertex and return it
+        # TODO convert to blender vertex and return it(?)
 
     def read_vertex(self, f, size: int, vertex_type: ForzaVertexType):
         if vertex_type == ForzaVertexType.Car: 

@@ -1,10 +1,14 @@
 import struct
-from mathutils import Vector
-from models.index_type import IndexType
+from typing import List
+from mathutils import Vector # type: ignore
+from forza.models.index_type import IndexType
+from forza.models.forza_vertex import ForzaVertex
 import utils.mesh_utils
 
 class ForzaTrackSubSection:
     def __init__(self, f):
+        # vertices
+        self.vertices: List[ForzaVertex] = None
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         
@@ -47,5 +51,6 @@ class ForzaTrackSubSection:
         if num != 0 and num != 1 and num != 2 and num != 5:
             raise RuntimeError("analyze this!")
         
+        # counts
         self.vertex_count = utils.mesh_utils.calculate_vertex_count(self.indices)
         self.face_count = utils.mesh_utils.calculate_face_count(self.indices, IndexType)
