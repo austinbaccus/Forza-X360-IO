@@ -1,4 +1,5 @@
 from models.index_type import IndexType
+from typing import List, Dict
 
 def calculate_face_count(indices, index_type):
     if index_type == IndexType.TriStrip:
@@ -34,7 +35,57 @@ def read_indices(f, size):
         if (size == 2 and num == 65535) or (size == 4 and num >= 16777215):
             num = -1
             array[i] = num
-        # this is for car models
-        #else:
+        else:
+            raise RuntimeError("Importing cars is not supported.")
             #array[i] = num + ForzaCarSection.IBoffset;
+    return array
+
+def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
+    array = [0] * (face_count * 3)
+    flag = True
+    num = 0
+    num2 = 0
+
+    while num < len(indices) - 2:
+        num3 = indices[num + 2]
+        if num3 != -1:
+            num4 = indices[num]
+            num5 = indices[num + 1]
+            num += 1
+            if num4 != num5 and num5 != num3 and num4 != num3:
+                if flag:
+                    array[num2] = num4
+                    array[num2 + 1] = num5
+                    array[num2 + 2] = num3
+                else:
+                    array[num2] = num5
+                    array[num2 + 1] = num4
+                    array[num2 + 2] = num3
+            num2 += 3
+            flag = not flag
+        else:
+            flag = True
+            num += 3
+
+    return array
+
+# TODO idk if this works
+def generate_vertices(section_vertices: List["ForzaVertex"], sub_section_indices: List[int]) -> List["ForzaVertex"]:
+    num = 0
+    hashtable: Dict[int, int] = {}
+    num2 = len(sub_section_indices)
+
+    for i in range(num2):
+        num3 = sub_section_indices[i]
+        if num3 != -1:
+            if num3 not in hashtable:
+                hashtable[num3] = num
+                num += 1
+            sub_section_indices[i] = hashtable[num3]
+
+    array: List["ForzaVertex"] = [None] * num  # placeholder list
+
+    for key, value in hashtable.items():
+        array[value] = section_vertices[key]
+
     return array

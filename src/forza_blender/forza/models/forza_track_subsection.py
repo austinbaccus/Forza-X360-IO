@@ -5,7 +5,6 @@ import utils.mesh_utils
 
 class ForzaTrackSubSection:
     def __init__(self, f):
-        
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         

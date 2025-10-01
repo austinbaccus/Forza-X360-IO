@@ -8,7 +8,10 @@ class FORZA_OT_import(Operator):
     bl_label = "Import"
     
     def execute(self, context):
-        print("Importing...")
+        if context.scene.forza_selection == "FM3":
+            import_fm3(context, context.scene.forza_last_folder)
+        if context.scene.forza_selection == "FM4":
+            import_fm4(context, context.scene.forza_last_folder)
 
 class FORZA_OT_pick_folder(Operator):
     """Choose a folder and return its path"""
@@ -45,3 +48,68 @@ def register():
 
 def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
+
+def import_fm3(context, track_path: Path):
+    from forza.models.read_rmbbin import RmbBin
+
+    # get paths to important folders and files
+    path_bin: Path = track_path / "bin"
+    path_shaders: Path = path_bin / "shaders"
+    path_ribbon: Path = track_path / "Ribbon_00"
+    path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
+
+    # Amalfi
+    # |-- ForzaTrackBin
+    # |---|-- ForzaTrackSection
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|-- ForzaTrackSection
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |-- ForzaTrackBin
+    # |---|-- ForzaTrackSection
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|-- ForzaTrackSection
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+    # |---|---|-- ForzaTrackSubSection
+    # |---|---|---|-- ForzaMesh
+    # |---|---|---|-- ForzaMesh
+
+    track_meshes = []
+
+    # get all .rmb.bin files
+    path_trackbins = list(path_ribbon.glob("*.rmb.bin"))
+
+    # foreach .rmb.bin file, create a ForzaTrackBin object
+    for path_trackbin in path_trackbins:
+        track_bin = RmbBin(path_trackbin.name)
+        track_bin.populate_objects_from_rmbbin()
+
+        if track_bin.forza_version.name != context.scene.forza_selection:
+            raise ValueError("Forza version mismatch!")
+        
+        # foreach ForzaTrackBin object, populate the ForzaTrackSection objects
+
+        # foreach ForzaTrackSection objects, populate the ForzaTrackSubSection objects
+
+        # foreach ForzaTrackSunSection objects, populate the ForzaMesh objects
+
+    print(len(track_meshes))
+
+def import_fm4(context, track_path: Path):
+    print()

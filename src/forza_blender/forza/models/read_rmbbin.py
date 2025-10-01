@@ -7,7 +7,7 @@ class RmbBin:
         self.filepath = filepath
         self.track_sections = []
 
-    def get_objects_from_rmbbin(self):
+    def populate_objects_from_rmbbin(self):
         with open(self.filepath, "rb") as f:
             num = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
@@ -21,5 +21,5 @@ class RmbBin:
             section_count: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
             for i in range(section_count):
-                self.track_sections.append(ForzaTrackSection)
+                self.track_sections.append(ForzaTrackSection(f))
 

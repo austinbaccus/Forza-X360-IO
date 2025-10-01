@@ -1,52 +1,54 @@
+import struct
 from typing import List
-from utils.forza_version import ForzaVersion
+import forza.utils
+from forza.models.forza_track_subsection import ForzaTrackSubSection
+from forza.utils.forza_version import ForzaVersion
+from forza.models.forza_vertex import ForzaVertex
+from forza.models.forza_vertex_type import ForzaVertexType
+from forza.models.index_type import IndexType
 
 class ForzaTrackSection:
-    def __init__(self, forza_version: ForzaVersion):
-        self.SubSections: List["ForzaTrackSubSection"] = []
-        self.Name: str = ""
-        self.Type: str = ""
-        self.Offset: "Vector3" = Vector3(0.0, 0.0, 0.0)
+    def __init__(self, f, forza_version: ForzaVersion):
+        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        f.read(4)
+        assert(0.0 == struct.unpack(">f", f.read(4))[0])
+        f.read(4)
+        assert(0.0 == struct.unpack(">f", f.read(4))[0])
+        f.read(4)
+        assert(0.0 == struct.unpack(">f", f.read(4))[0])
+        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
-        # Header / transforms (pattern of 1, vec3, 0.0, vec3, 0.0, vec3, 0.0, 1)
-        Utilities.assert_equals(self.Stream.read_uint32(), 1)
-        _ = Vector3(self.Stream.read_single(), self.Stream.read_single(), self.Stream.read_single())
-        Utilities.assert_equals(self.Stream.read_single(), 0.0)
-        _ = Vector3(self.Stream.read_single(), self.Stream.read_single(), self.Stream.read_single())
-        Utilities.assert_equals(self.Stream.read_single(), 0.0)
-        _ = Vector3(self.Stream.read_single(), self.Stream.read_single(), self.Stream.read_single())
-        Utilities.assert_equals(self.Stream.read_single(), 0.0)
-        Utilities.assert_equals(self.Stream.read_uint32(), 1)
+        # name
+        length = struct.unpack("<i", f.read(4))[0]
+        name_bytes = f.read(length)
+        self.name : str = name_bytes.decode("ascii").lower()
+        parts = self.name.split('_')
+        self.type = parts[0].lower()
+        self.name = self.name[self.name.index('_') + 1:]
 
-        # Name/type
-        name_len = self.Stream.read_int32()
-        self.Name = self.Stream.read_ascii(name_len).lower()
-        parts = self.Name.split('_')
-        self.Type = parts[0].lower()
-        self.Name = self.Name[self.Name.index('_') + 1:]
+        assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
-        # Vertex block
-        Utilities.assert_equals(self.Stream.read_uint32(), 2)
-        num = self.Stream.read_uint32()
-        size = self.Stream.read_uint32()
+        # forza vertex array
+        num: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        size: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
-        base_vertices: List["ForzaVertex"] = [None] * num  # type: ignore
+        base_vertices: List[ForzaVertex] = [None] * num  # type: ignore
         for i in range(num):
-            base_vertices[i] = ForzaVertex(forza_version, ForzaVertexType.Track, self.Stream, size)
+            base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track)
 
-        Utilities.assert_equals(self.Stream.read_uint32(), 1)
-        BoundingBox.from_vertices(base_vertices)
+        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        # BoundingBox.from_vertices(base_vertices) this does nothing?
 
         # Subsections
         sub_count = self.Stream.read_uint32()
-        self.SubSections = [None] * sub_count  # type: ignore
+        self.subsections = [None] * sub_count  # type: ignore
 
         for j in range(sub_count):
-            sub = ForzaTrackSubSection(self)
+            sub = ForzaTrackSubSection(f)
 
             # Generate per-subsection vertices (and possibly remapped indices)
             # If your Utilities.generate_vertices only returns vertices, drop the second assignment.
-            verts, indices = Utilities.generate_vertices(base_vertices, sub.Indices)
+            verts, indices = forza.utils.mesh_utils.generate_vertices(base_vertices, sub.Indices)
             sub.Vertices = verts
             sub.Indices = indices
 
@@ -61,6 +63,6 @@ class ForzaTrackSection:
 
             # Convert tristrips to triangle list if needed
             if sub.IndexType == IndexType.TriStrip:
-                sub.Indices = Utilities.generate_triangle_list(sub.Indices, sub.FaceCount)
+                sub.Indices = forza.utils.mesh_utils.generate_triangle_list(sub.Indices, sub.FaceCount)
 
-            self.SubSections[j] = sub
+            self.subsections[j] = sub
