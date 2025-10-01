@@ -71,7 +71,7 @@ def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
     return array
 
 # TODO idk if this works
-def generate_vertices(section_vertices: List["ForzaVertex"], sub_section_indices: List[int]) -> List["ForzaVertex"]:
+def generate_vertices(section_vertices: List["ForzaVertex"], sub_section_indices: List[int]) -> List[ForzaVertex]:
     num = 0
     hashtable: Dict[int, int] = {}
     num2 = len(sub_section_indices)
@@ -84,7 +84,7 @@ def generate_vertices(section_vertices: List["ForzaVertex"], sub_section_indices
                 num += 1
             sub_section_indices[i] = hashtable[num3]
 
-    array: List["ForzaVertex"] = [None] * num  # placeholder list
+    array: List[ForzaVertex] = [None] * num 
 
     for key, value in hashtable.items():
         array[value] = section_vertices[key]

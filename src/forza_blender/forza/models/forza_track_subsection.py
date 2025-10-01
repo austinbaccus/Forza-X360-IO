@@ -53,4 +53,4 @@ class ForzaTrackSubSection:
         
         # counts
         self.vertex_count = utils.mesh_utils.calculate_vertex_count(self.indices)
-        self.face_count = utils.mesh_utils.calculate_face_count(self.indices, IndexType)
+        self.face_count = utils.mesh_utils.calculate_face_count(self.indices, self.index_type)

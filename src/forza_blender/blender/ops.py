@@ -2,7 +2,8 @@ from pathlib import Path
 import bpy
 from bpy.types import Operator
 from bpy.props import StringProperty
- 
+from forza.models.forza_mesh import ForzaMesh
+
 class FORZA_OT_import(Operator):
     bl_idname = "forza.import"
     bl_label = "Import"
@@ -58,38 +59,6 @@ def import_fm3(context, track_path: Path):
     path_ribbon: Path = track_path / "Ribbon_00"
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
 
-    # Amalfi
-    # |-- ForzaTrackBin
-    # |---|-- ForzaTrackSection
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|-- ForzaTrackSection
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |-- ForzaTrackBin
-    # |---|-- ForzaTrackSection
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|-- ForzaTrackSection
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-    # |---|---|-- ForzaTrackSubSection
-    # |---|---|---|-- ForzaMesh
-    # |---|---|---|-- ForzaMesh
-
     track_meshes = []
 
     # get all .rmb.bin files
@@ -101,15 +70,15 @@ def import_fm3(context, track_path: Path):
         track_bin.populate_objects_from_rmbbin()
 
         if track_bin.forza_version.name != context.scene.forza_selection:
-            raise ValueError("Forza version mismatch!")
+            raise RuntimeError("Forza version mismatch!")
         
-        # foreach ForzaTrackBin object, populate the ForzaTrackSection objects
-
-        # foreach ForzaTrackSection objects, populate the ForzaTrackSubSection objects
-
-        # foreach ForzaTrackSunSection objects, populate the ForzaMesh objects
+        for track_section in track_bin.track_sections:
+            for track_subsection in track_section.subsections:
+                # each subsection is a mesh
+                meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
+                track_meshes.append(ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices))
 
     print(len(track_meshes))
 
 def import_fm4(context, track_path: Path):
-    print()
+    raise RuntimeError("FM4 is not supported.")

@@ -1,5 +1,5 @@
 import struct
-from mathutils import Vector
+from mathutils import Vector # type: ignore
 from forza.models.forza_vertex_type import ForzaVertexType
 
 class ForzaVertex:

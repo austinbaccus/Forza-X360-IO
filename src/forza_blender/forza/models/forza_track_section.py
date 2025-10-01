@@ -39,7 +39,7 @@ class ForzaTrackSection:
 
         # subsections
         sub_count = self.Stream.read_uint32()
-        self.subsections = [None] * sub_count
+        self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
 
         for j in range(sub_count):
             sub = ForzaTrackSubSection(f)
