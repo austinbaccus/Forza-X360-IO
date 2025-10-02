@@ -185,5 +185,4 @@ namespace Forza
             return targetMin + (actualValue - actualMin) / (actualMax - actualMin) * (targetMax - targetMin);
         }
     }
-
 }

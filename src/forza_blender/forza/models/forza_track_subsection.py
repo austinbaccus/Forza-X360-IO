@@ -43,10 +43,12 @@ class ForzaTrackSubSection:
         assert(3 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
         # indices
-        f.read(4)
-        self.indices = read_indices(f, int.from_bytes(f.read(4), byteorder="big", signed=True), int.from_bytes(f.read(4), byteorder="big", signed=True))
+        indicies_count = int.from_bytes(f.read(4), byteorder="big", signed=True) # 2
+        indices_size = int.from_bytes(f.read(4), byteorder="big", signed=True) # 1
+        self.indices = read_indices(f, indicies_count, indices_size)
 
-        num = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        #num = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        num = struct.unpack(">i", f.read(4))[0]
         if num != 0 and num != 1 and num != 2 and num != 5:
             print()
             #raise RuntimeError("analyze this!")
