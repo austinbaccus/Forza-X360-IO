@@ -1,6 +1,8 @@
+from forza_blender.forza.models.forza_mesh import ForzaMesh
 from ..models.index_type import IndexType
 from ..models.forza_vertex import ForzaVertex
 from typing import List, Dict
+import bpy # type: ignore
 
 def calculate_face_count(indices, index_type):
     if index_type == IndexType.TriStrip:
@@ -89,3 +91,29 @@ def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: 
         array[value] = section_vertices[key]
 
     return array
+
+def convert_indices_to_faces(indices):
+    faces = []
+    for i in range(0, len(indices), 3):
+        x = indices[i] + 1
+        y = indices[i + 1] + 1
+        z = indices[i + 2] + 1
+        if (x != y) and (y != z) and (x != z):
+            faces.append([x,y,z])
+    return faces
+
+def convert_forzavertex_to_blendervertex(forza_vertices: list[ForzaVertex]):
+    blender_vertices = []
+    for forza_vertex in forza_vertices:
+        vert = forza_vertex.position
+        blender_vertices.append((vert.x,vert.y,vert.z))
+    return blender_vertices
+
+def convert_forzamesh_into_blendermesh(forza_mesh: ForzaMesh):
+    print("Converting " + forza_mesh.name + " into Blender mesh")
+    vertices = convert_forzavertex_to_blendervertex(forza_mesh.vertices)
+    faces = convert_indices_to_faces(forza_mesh.indices)
+    mesh = bpy.data.meshes.new(name=forza_mesh.name)
+    mesh.from_pydata(vertices, [], faces, False)
+    mesh.validate()
+    return mesh

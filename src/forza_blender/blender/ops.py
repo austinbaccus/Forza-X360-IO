@@ -3,6 +3,7 @@ import bpy
 from bpy.types import Operator
 from bpy.props import StringProperty
 from forza_blender.forza.models.forza_mesh import ForzaMesh
+from forza_blender.forza.utils.mesh_utils import convert_forzamesh_into_blendermesh
 
 class FORZA_OT_import(Operator):
     bl_idname = "forza.import"
@@ -85,6 +86,11 @@ def import_fm3(context, track_path: Path):
                 track_meshes.append(ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices))
 
     print("track_meshes length: " + str(len(track_meshes)))
+
+    for forza_mesh in track_meshes[:5]: # convert first 5 forza meshes into blender meshes and import them into the scene
+        blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
+        obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
+        bpy.context.collection.objects.link(obj)
 
 def import_fm4(context, track_path: Path):
     raise RuntimeError("FM4 is not supported.")
