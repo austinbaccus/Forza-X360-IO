@@ -2,13 +2,13 @@ from ..utils.forza_version import ForzaVersion
 from .forza_track_section import ForzaTrackSection
 
 class RmbBin:
-    def __init__(self, filepath: str):
+    def __init__(self, path_file):
         self.forza_version: ForzaVersion = ForzaVersion.Unknown
-        self.filepath = filepath
+        self.path_file = path_file
         self.track_sections = []
 
     def populate_objects_from_rmbbin(self):
-        with open(self.filepath, "rb") as f:
+        with self.path_file.open() as f:
             num = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
             if num == 4:

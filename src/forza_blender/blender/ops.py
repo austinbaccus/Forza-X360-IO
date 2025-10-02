@@ -57,7 +57,6 @@ def import_fm3(context, track_path: Path):
         print("track_path is not the right type")
         print("track_path value: " + track_path)
         print("Converting track_path to Path object...")
-        #raise TypeError("Path needs to be a Path object, not " + type(track_path))
         track_path = Path(track_path)
 
     # get paths to important folders and files
@@ -69,11 +68,11 @@ def import_fm3(context, track_path: Path):
     track_meshes = []
 
     # get all .rmb.bin files
-    path_trackbins = list(path_ribbon.glob("*.rmb.bin"))
+    path_trackbins = path_bin.glob("*.rmb.bin")
 
     # foreach .rmb.bin file, create a ForzaTrackBin object
     for path_trackbin in path_trackbins:
-        track_bin = RmbBin(path_trackbin.name)
+        track_bin = RmbBin(path_trackbin)
         track_bin.populate_objects_from_rmbbin()
 
         if track_bin.forza_version.name != context.scene.forza_selection:
