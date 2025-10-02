@@ -37,8 +37,7 @@ def read_indices(f, count, size):
             num = -1
             array.append(num)
         else:
-            # TODO this is for stuff like cones and whatnot, not just cars, so this should be a little higher priority
-            # to get working.
+            # TODO this is for stuff like cones and whatnot, not just cars, so this should be a little higher priority to get working.
             array.append(num) # + ForzaCarSection.IBoffset; # this is 0 unless FM2
     return array
 
@@ -71,7 +70,6 @@ def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
 
     return array
 
-# TODO idk if this works
 def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: List[int]) -> List[ForzaVertex]:
     num = 0
     hashtable: Dict[int, int] = {}

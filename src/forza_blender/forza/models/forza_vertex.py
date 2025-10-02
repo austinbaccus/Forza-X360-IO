@@ -90,21 +90,21 @@ class ForzaVertex:
         raise RuntimeError("Reading car vertices is not supported.")
     
     def _get_normalized_101010(self, packed_value: int):
-        # Layout matches R10G10B10: bits [0..9]=X, [10..19]=Y, [20..29]=Z. Top 2 bits ignored.
+        # layout matches R10G10B10: bits [0..9]=X, [10..19]=Y, [20..29]=Z. Top 2 bits ignored.
         MASK10 = 0x3FF   # 10-bit mask (0b11_1111_1111)
         SIGN10 = 0x200   # bit 9 (sign bit in 10-bit two's complement)
 
-        # Extract raw 10-bit values
+        # wxtract raw 10-bit values
         ix = packed_value & MASK10
         iy = (packed_value >> 10) & MASK10
         iz = (packed_value >> 20) & MASK10
 
-        # Sign extend from 10 bits to Python int
+        # aign extend from 10 bits to Python int
         ix = ix | ~MASK10 if (ix & SIGN10) else ix
         iy = iy | ~MASK10 if (iy & SIGN10) else iy
         iz = iz | ~MASK10 if (iz & SIGN10) else iz
 
-        # Convert SNORM10 -> float in [-1,1]; special-case the most negative
+        # convert SNORM10 -> float in [-1,1]; special-case the most negative
         if ix == -512:
             ix = -1.0
         else:

@@ -14,8 +14,6 @@ class RmbBin:
             # TODO 
             # "int.from_bytes is made for a different thing. 
             # To parse file types from binary, struct.unpack is preferred" - Doliman100
-
-            # TODO future Austin, this might be why reading ints is failing later on
             num = int.from_bytes(_, byteorder="big", signed=False)
 
             if num == 4:

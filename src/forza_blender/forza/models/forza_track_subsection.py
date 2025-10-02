@@ -47,11 +47,9 @@ class ForzaTrackSubSection:
         indices_size = int.from_bytes(f.read(4), byteorder="big", signed=True) # 1
         self.indices = read_indices(f, indicies_count, indices_size)
 
-        #num = int.from_bytes(f.read(4), byteorder="big", signed=False)
         num = struct.unpack(">i", f.read(4))[0]
         if num != 0 and num != 1 and num != 2 and num != 5:
-            print()
-            #raise RuntimeError("analyze this!")
+            raise RuntimeError("analyze this!")
         
         # counts
         self.vertex_count = calculate_vertex_count(self.indices)

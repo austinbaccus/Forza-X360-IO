@@ -20,8 +20,8 @@ class ForzaTrackSection:
 
         # name
         length = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        name_bytes = f.read(length)                                                 # Stream.ReadASCII(Stream.ReadInt32()).ToLowerInvariant();
-        self.name : str = name_bytes.decode("ascii").lower()                        # UnicodeDecodeError: 'ascii' codec can't decode byte 0xbe in position 23: ordinal not in range(128)
+        name_bytes = f.read(length)
+        self.name : str = name_bytes.decode("ascii").lower()
         parts = self.name.split('_')
         self.type = parts[0].lower()
         self.name = self.name[self.name.index('_') + 1:]
