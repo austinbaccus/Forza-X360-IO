@@ -1,88 +1,90 @@
 import struct
 from mathutils import Vector # type: ignore
 from .forza_vertex_type import ForzaVertexType
+from ..utils.forza_version import ForzaVersion
 
 class ForzaVertex:
-    def __init__(self, f, size: int, vertex_type: ForzaVertexType):
+    def __init__(self, f, size: int, vertex_type: ForzaVertexType, forza_version: ForzaVersion):
         self.position: Vector = Vector((0.0,0.0,0.0))
         self.texture0: Vector = Vector((0.0,0.0))
         self.texture1: Vector = Vector((0.0,0.0))
         self.normal: Vector = Vector((0.0,0.0,0.0))
-        self.read_vertex(f, size, vertex_type)
+        self.read_vertex(f, size, vertex_type, forza_version)
 
-        # TODO convert to blender vertex and return it(?)
-
-    def read_vertex(self, f, size: int, vertex_type: ForzaVertexType):
+    def read_vertex(self, f, size: int, vertex_type: ForzaVertexType, forza_version: ForzaVersion):
         if vertex_type == ForzaVertexType.Car: 
-            return ForzaVertex._read_car_vertex()
+            self._read_car_vertex()
         if vertex_type == ForzaVertexType.Track: 
-            return ForzaVertex._read_track_vertex(f, size)
+            self._read_track_vertex(f, size, forza_version)
 
-    def _read_track_vertex(self, f, size: int):
-        if size == 12:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-        elif size == 16:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-        elif size == 20:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-        elif size == 24:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-        elif size == 28:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            f.read(8)
-        elif size == 32:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            f.read(8)
-        elif size == 36:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            f.read(4)
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            f.read(8)
-        elif size == 40:
-            x = struct.unpack(">f", f.read(4))[0]
-            y = struct.unpack(">f", f.read(4))[0]
-            z = struct.unpack(">f", f.read(4))[0]
-            self.position = Vector((x, y, z))
-            self.normal = ForzaVertex._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            f.read(16)
+    def _read_track_vertex(self, f, size: int, forza_version: ForzaVersion):
+        if forza_version == ForzaVersion.FM3:
+            if size == 12:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+            elif size == 16:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+            elif size == 20:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+            elif size == 24:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+            elif size == 28:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                f.read(8)
+            elif size == 32:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                f.read(8)
+            elif size == 36:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                f.read(4)
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                f.read(8)
+            elif size == 40:
+                x = struct.unpack(">f", f.read(4))[0]
+                y = struct.unpack(">f", f.read(4))[0]
+                z = struct.unpack(">f", f.read(4))[0]
+                self.position = Vector((x, y, z))
+                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
+                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
+                f.read(16)
+            else:
+                raise RuntimeError("Vertex data is the wrong size.")
         else:
-            raise RuntimeError("Vertex data is the wrong size.")
+            raise RuntimeError(str(forza_version.name) + " is not supported for track vertices yet.")
 
     def _read_car_vertex(self):
         raise RuntimeError("Reading car vertices is not supported.")

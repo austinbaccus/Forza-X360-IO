@@ -5,22 +5,23 @@ from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
 from .forza_vertex_type import ForzaVertexType
 from .index_type import IndexType
+from ..utils.forza_version import ForzaVersion
 
 class ForzaTrackSection:
-    def __init__(self, f):
+    def __init__(self, f, forza_version: ForzaVersion):
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        f.read(4)
+        f.read(12)
+        assert(0.0 == struct.unpack(">f", f.read(4))[0]  )
+        f.read(12)
         assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        f.read(4)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        f.read(4)
+        f.read(12)
         assert(0.0 == struct.unpack(">f", f.read(4))[0])
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
         # name
-        length = struct.unpack("<i", f.read(4))[0]
-        name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("ascii").lower()
+        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        name_bytes = f.read(length)                                                 # Stream.ReadASCII(Stream.ReadInt32()).ToLowerInvariant();
+        self.name : str = name_bytes.decode("ascii").lower()                        # UnicodeDecodeError: 'ascii' codec can't decode byte 0xbe in position 23: ordinal not in range(128)
         parts = self.name.split('_')
         self.type = parts[0].lower()
         self.name = self.name[self.name.index('_') + 1:]
@@ -33,12 +34,12 @@ class ForzaTrackSection:
 
         base_vertices: List[ForzaVertex] = [None] * num
         for i in range(num):
-            base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track)
+            base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track, forza_version)
 
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
         # subsections
-        sub_count = self.Stream.read_uint32()
+        sub_count = int.from_bytes(f.read(4), byteorder="big", signed=False)
         self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
 
         for j in range(sub_count):

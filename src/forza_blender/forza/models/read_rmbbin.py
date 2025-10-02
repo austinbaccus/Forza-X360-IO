@@ -8,12 +8,19 @@ class RmbBin:
         self.track_sections = []
 
     def populate_objects_from_rmbbin(self):
-        with self.path_file.open() as f:
-            num = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        with self.path_file.open('rb') as f:
+            _ = f.read(4)
+
+            # TODO 
+            # "int.from_bytes is made for a different thing. 
+            # To parse file types from binary, struct.unpack is preferred" - Doliman100
+
+            # TODO future Austin, this might be why reading ints is failing later on
+            num = int.from_bytes(_, byteorder="big", signed=False)
 
             if num == 4:
                 self.forza_version = ForzaVersion.FM3
-            if num == 6:
+            elif num == 6:
                 self.forza_version = ForzaVersion.FM4
 
             f.read(112)
@@ -21,5 +28,5 @@ class RmbBin:
             section_count: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
             for i in range(section_count):
-                self.track_sections.append(ForzaTrackSection(f))
+                self.track_sections.append(ForzaTrackSection(f, self.forza_version))
 

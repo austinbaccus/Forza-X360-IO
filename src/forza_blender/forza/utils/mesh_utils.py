@@ -25,20 +25,21 @@ def calculate_vertex_count(indices):
             hashtable[num] = 0
     return len(hashtable)
 
-def read_indices(f, size):
+def read_indices(f, count, size):
     array = []
-    for i in range(len(array)):
+    for i in range(count):
         num = 0
         if size == 2:
             num = int.from_bytes(f.read(2), byteorder="big", signed=False)
         else:
-            num = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            num = int.from_bytes(f.read(4), byteorder="big", signed=True)
         if (size == 2 and num == 65535) or (size == 4 and num >= 16777215):
             num = -1
-            array[i] = num
+            array.append(num)
         else:
-            raise RuntimeError("Importing cars is not supported.")
-            #array[i] = num + ForzaCarSection.IBoffset;
+            # TODO this is for stuff like cones and whatnot, not just cars, so this should be a little higher priority
+            # to get working.
+            array.append(num) # + ForzaCarSection.IBoffset; # this is 0 unless FM2
     return array
 
 def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
@@ -71,7 +72,7 @@ def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
     return array
 
 # TODO idk if this works
-def generate_vertices(section_vertices: List["ForzaVertex"], sub_section_indices: List[int]) -> List[ForzaVertex]:
+def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: List[int]) -> List[ForzaVertex]:
     num = 0
     hashtable: Dict[int, int] = {}
     num2 = len(sub_section_indices)

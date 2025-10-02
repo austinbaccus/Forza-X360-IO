@@ -13,8 +13,7 @@ class ForzaTrackSubSection:
         assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         
         # name
-        length_bytes = f.read(4)
-        length = struct.unpack("<i", length_bytes)[0]
+        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
         name_bytes = f.read(length)
         self.name : str = name_bytes.decode("ascii").lower()
 
@@ -45,11 +44,12 @@ class ForzaTrackSubSection:
 
         # indices
         f.read(4)
-        self.indices = read_indices(f, int.from_bytes(f.read(4), byteorder="big", signed=False))
+        self.indices = read_indices(f, int.from_bytes(f.read(4), byteorder="big", signed=True), int.from_bytes(f.read(4), byteorder="big", signed=True))
 
         num = int.from_bytes(f.read(4), byteorder="big", signed=False)
         if num != 0 and num != 1 and num != 2 and num != 5:
-            raise RuntimeError("analyze this!")
+            print()
+            #raise RuntimeError("analyze this!")
         
         # counts
         self.vertex_count = calculate_vertex_count(self.indices)
