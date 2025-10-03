@@ -58,11 +58,7 @@ def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
 def import_fm3(context, track_path: Path):
-    from ..forza.models.read_rmbbin import RmbBin
     if type(track_path) is not Path:
-        print("track_path is not the right type")
-        print("track_path value: " + track_path)
-        print("Converting track_path to Path object...")
         track_path = Path(track_path)
 
     # get paths to important folders and files
@@ -73,28 +69,18 @@ def import_fm3(context, track_path: Path):
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
 
     # textures
-    textures = []
-    for path_texture in path_textures:
-        filename = str(path_texture.resolve())
-        if not filename.endswith("_B.bix"):
-            img = Bix.get_image_from_bix(path_texture.resolve())
-            textures.append(img)
+    textures = _get_textures(path_textures) # this takes a long time to finish. comment this line out unless you really need textures
 
     # meshes
-    track_meshes = []
-    for path_trackbin in path_bin.glob("*.rmb.bin"):
-        track_bin = RmbBin(path_trackbin)
-        track_bin.populate_objects_from_rmbbin()
-        if track_bin.forza_version.name != context.scene.forza_selection:
-            raise RuntimeError("Forza version mismatch!")
-        for track_section in track_bin.track_sections:
-            for track_subsection in track_section.subsections: # each subsection is a mesh
-                meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
-                track_meshes.append(ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices))
-
+    track_meshes = _get_meshes(context, path_bin)
+    
     # pvs
-    stream = BinaryStream.from_path(path_ribbon_pvs.resolve(), ">")
-    pvs = PVS.from_stream(stream)
+    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+
+    # TODO
+    # assign textures to models using pvs
+    # map track_meshes which model_indexes
+    # duplicate instances
     models_indexes = list(set([model_instance.model_index for model_instance in pvs.models_instances]))
     models_indexes = sorted(models_indexes)
     j = 0
@@ -104,12 +90,36 @@ def import_fm3(context, track_path: Path):
             continue
         j += 1
 
-    # convert forza meshes to blender meshes
-    for forza_mesh in track_meshes:
-        blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
-        obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
+    # add all objects to the scene
+    _add_meshes_to_scene(track_meshes)
+
+def _get_textures(path_textures):
+    textures = []
+    for path_texture in path_textures:
+        filename = str(path_texture.resolve())
+        if not filename.endswith("_B.bix"):
+            img = Bix.get_image_from_bix(path_texture.resolve())
+            textures.append(img)
+    return textures
+
+def _get_meshes(context, path_bin):
+    from ..forza.models.read_rmbbin import RmbBin
+    track_meshes = []
+    for path_trackbin in path_bin.glob("*.rmb.bin"):
+        track_bin = RmbBin(path_trackbin)
+        track_bin.populate_objects_from_rmbbin()
+        if track_bin.forza_version.name != context.scene.forza_selection:
+            raise RuntimeError("Forza version mismatch!")
+        for track_section in track_bin.track_sections:
+            for track_subsection in track_section.subsections: # each subsection is a mesh
+                meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
+                forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices)
+                blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
+                track_meshes.append(blender_mesh)
+    return track_meshes
+
+def _add_meshes_to_scene(track_meshes):
+    for blender_mesh in track_meshes:
+        obj = bpy.data.objects.new(blender_mesh.name, blender_mesh) # TODO this was switched from ForzaMesh to Blender Mesh, so name might not be there anymore
         obj.rotation_euler = (math.radians(90), 0, 0)
         bpy.context.collection.objects.link(obj)
-
-def import_fm4(context, track_path: Path):
-    raise RuntimeError("FM4 is not supported.")
