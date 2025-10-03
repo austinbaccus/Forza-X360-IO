@@ -1,9 +1,14 @@
 from pathlib import Path
-import bpy
-from bpy.types import Operator
-from bpy.props import StringProperty
+import bpy # type: ignore
+import math
+from bpy.types import Operator # type: ignore
+from bpy.props import StringProperty # type: ignore
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_utils import convert_forzamesh_into_blendermesh
+from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.pvs.pvs_util import BinaryStream
+from forza_blender.forza.textures.read_bix import Bix
+from forza_blender.forza.textures.texture_util import *
 
 class FORZA_OT_import(Operator):
     bl_idname = "forza.import"
@@ -63,33 +68,47 @@ def import_fm3(context, track_path: Path):
     # get paths to important folders and files
     path_bin: Path = track_path / "bin"
     path_shaders: Path = path_bin / "shaders"
+    path_textures: Path = list(path_bin.glob("*.bix"))
     path_ribbon: Path = track_path / "Ribbon_00"
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
 
+    # textures
+    textures = []
+    for path_texture in path_textures:
+        filename = str(path_texture.resolve())
+        if not filename.endswith("_B.bix"):
+            img = Bix.get_image_from_bix(path_texture.resolve())
+            textures.append(img)
+
+    # meshes
     track_meshes = []
-
-    # get all .rmb.bin files
-    path_trackbins = path_bin.glob("*.rmb.bin")
-
-    # foreach .rmb.bin file, create a ForzaTrackBin object
-    for path_trackbin in path_trackbins:
+    for path_trackbin in path_bin.glob("*.rmb.bin"):
         track_bin = RmbBin(path_trackbin)
         track_bin.populate_objects_from_rmbbin()
-
         if track_bin.forza_version.name != context.scene.forza_selection:
             raise RuntimeError("Forza version mismatch!")
-        
         for track_section in track_bin.track_sections:
-            for track_subsection in track_section.subsections:
-                # each subsection is a mesh
+            for track_subsection in track_section.subsections: # each subsection is a mesh
                 meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
                 track_meshes.append(ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices))
 
-    print("track_meshes length: " + str(len(track_meshes)))
+    # pvs
+    stream = BinaryStream.from_path(path_ribbon_pvs.resolve(), ">")
+    pvs = PVS.from_stream(stream)
+    models_indexes = list(set([model_instance.model_index for model_instance in pvs.models_instances]))
+    models_indexes = sorted(models_indexes)
+    j = 0
+    for i in range(len(pvs.models)):
+        if models_indexes[j] != i:
+            print(i)
+            continue
+        j += 1
 
-    for forza_mesh in track_meshes[:5]: # convert first 5 forza meshes into blender meshes and import them into the scene
+    # convert forza meshes to blender meshes
+    for forza_mesh in track_meshes:
         blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
         obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
+        obj.rotation_euler = (math.radians(90), 0, 0)
         bpy.context.collection.objects.link(obj)
 
 def import_fm4(context, track_path: Path):

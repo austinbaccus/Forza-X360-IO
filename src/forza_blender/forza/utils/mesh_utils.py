@@ -92,7 +92,7 @@ def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: 
 
     return array
 
-def convert_indices_to_faces(indices):
+def convert_indices_to_faces(indices): # [1,3,4,6,6,4,3,4,5,6,4] --> [(1,2,3),(3,4,3)...]
     faces = []
     for i in range(0, len(indices), 3):
         x = indices[i] + 1
