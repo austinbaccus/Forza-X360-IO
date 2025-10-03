@@ -1,0 +1,245 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: *.rmb.bin
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+BigEndian();
+
+typedef struct {
+    uint32 size; // unsigned long
+    char data[size]; // char
+} String <read=data, write=0>; // std::string
+
+typedef struct {
+    float x;
+    float y;
+    float z;
+    float w;
+} DirectX_XMVECTOR <read=Str("%g %g %g %g", x, y, z, w)>; // DirectX::XMVECTOR
+
+typedef struct {
+    local int i;
+    for (i = 0; i < 4; i++) {
+        DirectX_XMVECTOR r;
+    }
+} DirectX_XMMATRIX; // DirectX::XMMATRIX
+
+typedef enum {
+    D3DFMT_INDEX16 = 1,
+    D3DFMT_INDEX32 = 6
+    //D3DFMT_VERTEXDATA = 8
+} D3DFORMAT;
+
+//D3DRTYPE_VERTEXBUFFER = 1,
+//D3DRTYPE_INDEXBUFFER = 2,
+
+// sub_838416E0 CommandBuffer, SharedHeaderSize
+
+// IOSys::CMemoryVersionedStream
+
+// CTrackModel
+//  TBaseModel<class CTrackSubModel,15>
+//   CBaseModel
+// CTrackSubModel
+//  TSubModel<class CTrackMesh,class CBaseOpaqueVertex,class CBaseOpaqueVertex>
+//   CBaseSubModel
+// CTrackMesh
+//  CMesh
+
+typedef struct CMesh { // sub_834EC830
+    int32 Version; // 2: FM3
+    String Name; // std::string
+    int32 LOD; // long
+    enum D3DPRIMITIVETYPE {
+        D3DPT_TRIANGLELIST = 4,
+        D3DPT_TRIANGLESTRIP = 6,
+    } PrimitiveType; // long
+    int32 MaterialIndex; // long
+    struct {
+        int32 Version; // 1: FM3; "stream.BeginGroup(name, 1) == 1"
+        DirectX_XMVECTOR PositionOffset;
+        DirectX_XMVECTOR PositionScale;
+        DirectX_XMVECTOR UVOffsetScale;
+    } UnpackingData;
+    struct { // sub_835C64C8
+        int32 Version; // 3: FM3, FM4; 4: FH1
+        if (Version >= 4) {
+            uint32 unk_v4;
+        }
+        int32 length; // long; Count
+        int32 stride; // long; Format
+        uint8 data[stride * length];
+
+        //local D3DFORMAT format;
+        //if (Version < 3 || stride == 4) {
+        //    format = D3DFMT_INDEX32;
+        //} else {
+        //    format = D3DFMT_INDEX16;
+        //}
+        //if (format == D3DFMT_INDEX16) {
+        //    uint8 data[2 * length];
+        //} else if (version >= 2) {
+        //    uint8 data[4 * length];
+        //} else {
+        //    // variable name: Index0000000000, ("Index%u", i)
+        //    // read buffer as unsigned long, each index wrapped with a group with version 1
+        //    Exit(-1);
+        //}
+
+        // TODO
+        //   scan stride != 2
+        //   scan version != 3
+    } IndexBuffer;
+    if (Version >= 2) {
+        uint32 meshFlags; // unsigned long
+    }
+} CMesh;
+
+typedef struct { // sub_835CA4C8
+    int32 Version; // long; 1: FM3; "version == 1"
+    CMesh base;
+} CTrackMesh;
+
+typedef struct { // sub_835C4F50
+    int32 Version; // 1: FM3
+    String Name; // std::string
+    
+    struct {
+        int32 Version; // 2: FM3; 3: FH1
+        if (Version >= 2) {
+            int32 length; // long; count
+            int32 stride; // long; size
+            if (Version >= 3) {
+                uint32 unk_v3;
+            }
+            uint8 data[stride * length];
+        } else {
+            // VBParams; group version = 1
+            // VBData; group version = 1
+            Exit(-1);
+        }
+    } VertexBuffer;
+    
+    struct {
+        int32 Version; // 1: FM3
+        uint32 meshes_length; // unsigned long; count
+        CTrackMesh meshes[meshes_length] <optimize=false>;
+    } Mesh_Container;
+} TSubModel; // TSubModel<CTrackMesh,CBaseOpaqueVertex,CBaseOpaqueVertex>
+
+typedef struct { // sub_835C4B40
+    int32 Version; // 1: FM3
+    DirectX_XMVECTOR OffsetFromModelOrigin;
+    DirectX_XMVECTOR MinBounds;
+    DirectX_XMVECTOR MaxBounds;
+    TSubModel base; // name: TSubModel
+} CTrackSubModel;
+
+typedef struct { // sub_837FA578
+    int32 Version; // 4: FM3
+    struct {
+        int32 Version; // 4: FM3
+        uint32 NumLODs;
+        if (NumLODs != 0) {
+            Exit(-1);
+        }
+    } OrderedSubModels;
+    struct { // sub_835C14E0
+        int32 Version;
+        uint32 sub_models_length; // unsigned long count;
+        CTrackSubModel sub_models[sub_models_length] <optimize=false>;
+    } SubModel_Container;
+    struct { // sub_83808198
+        int32 Version; // 1: FM3
+        uint32 length; // unsigned long
+        struct { // sub_8380C510
+            int32 Version; // 1: FM3
+            struct { // sub_8380C5B8
+                int32 Version; // 1: FM3
+                uint32 length;
+                struct { // sub_8380D5F0
+                    int32 Version; // 3: FM3
+                    uint32 FxFileNameIndex; // uint8[4]
+                    uint32 TechniqueIndex; // uint8[4]
+                    struct ShaderConstants_Countainer { // sub_8380D798
+                        int32 Version; // 1: FM3
+                        uint32 length;
+                        if (length > 0) {
+                            DirectX_XMVECTOR ShaderConstants[length];
+                        }
+                    } VertexShaderConstants_Container;
+                    ShaderConstants_Countainer PixelShaderConstants_Container;
+                    struct { // sub_8380D910
+                        int32 Version; // 1: FM3
+                        uint32 length;
+                        if (length > 0) {
+                            uint32 TextureSamplerIndices[length]; // uint8[4]
+                        }
+                    } TextureSamplerIndices_Container;
+                } materials[length] <optimize=false>;
+            } materials_container;
+        } material_sets[length] <optimize=false>;
+    } MaterialSets_Container;
+    struct Names_Contianer { // sub_838082F8
+        int32 Version; // 1: FM3
+        uint32 count;
+        if (count > 0) {
+            String Names[count] <optimize=false>; // std::string
+        }
+    } FxFileNames;
+    Names_Contianer MeshNames;
+    if (Version >= 4) {
+        struct { // sub_838416E0
+            int32 Version; // 1: FM3
+            uint32 SharedHeaderSize; // unsigned long
+            uint32 SharedPhysicalSize; // unsigned long
+            uint32 SharedInitializationSize; // unsigned long
+            uint32 SharedStaticFixupSize; // unsigned long
+            uint32 SharedDynamicFixupSize; // unsigned long
+            struct {
+                int32 Version; // 2: FM3
+                if (Version >= 2) {
+                    struct Fixups {
+                        uint32 length; // unsigned long Count;
+                        if (length > 0) {
+                            //uint8 data[8 * length];
+                            struct {
+                                uint32 FixupType_ID; // unsigned long; Param
+                                uint32 Handle; // unsigned long
+                            } fixups[length];
+                        }
+                    } DynamicFixups;
+                    Fixups StaticFixups;
+                } else {
+                    // Param, Handle, version, ...
+                    Exit(-1); // TODO
+                }
+                uint32 HeaderSize; // unsigned long
+                uint32 PhysicalSize; // unsigned long
+                uint32 InitializationSize; // unsigned long
+                //uint8 Header[HeaderSize];
+                //uint8 Physical[PhysicalSize];
+                //uint8 Initialization[InitializationSize];
+            } CommandBuffer[15] <optimize=false>; // [length?]
+            uint8 SharedHeader[SharedHeaderSize];
+            uint8 SharedPhysical[SharedPhysicalSize];
+            uint8 SharedInitialization[SharedInitializationSize];
+        } CommandBufferGroup;
+    }
+} TBaseModel; // TBaseModel<class CTrackSubModel,15>
+
+struct CTrackModel { // sub_83779E78
+    int32 Version; // 4: FM3
+    DirectX_XMVECTOR MinBounds;
+    DirectX_XMVECTOR MaxBounds;
+    DirectX_XMMATRIX WorldTransform;
+    TBaseModel base;
+} track_model;

@@ -33,6 +33,9 @@ class PVSZone:
 class PVSModelInstance:
     def __init__(self, model_index: int):
         self.model_index = model_index
+        self.position = (0,0,0)
+        self.rotation = (0,0,0)
+        self.scale = (0,0,0)
 
     def from_stream(stream: BinaryStream):
         model_index = stream.read_u16()
@@ -40,6 +43,7 @@ class PVSModelInstance:
         return PVSModelInstance(model_index)
 
 class PVSModel:
+    # same here, some work needs to be done
     def from_stream(stream: BinaryStream):
         textures_references_length = stream.read_u32()
         stream.skip(4 * textures_references_length)
@@ -47,6 +51,7 @@ class PVSModel:
         stream.skip(4 * unk2_length + 64 + 16)
 
 class PVS:
+    # fill this in with stuff like texture references, transforms, translations, etc.
     def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel]):
         self.header = header
         self.models_instances = models_instances

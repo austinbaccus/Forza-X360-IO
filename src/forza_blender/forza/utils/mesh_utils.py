@@ -109,7 +109,6 @@ def convert_forzavertex_to_blendervertex(forza_vertices: list[ForzaVertex]):
     return blender_vertices
 
 def convert_forzamesh_into_blendermesh(forza_mesh: ForzaMesh):
-    print("Converting " + forza_mesh.name + " into Blender mesh")
     vertices = convert_forzavertex_to_blendervertex(forza_mesh.vertices)
     faces = convert_indices_to_faces(forza_mesh.indices)
     mesh = bpy.data.meshes.new(name=forza_mesh.name)
