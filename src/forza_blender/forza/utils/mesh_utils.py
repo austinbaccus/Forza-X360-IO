@@ -95,11 +95,10 @@ def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: 
 def convert_indices_to_faces(indices): # [1,3,4,6,6,4,3,4,5,6,4] --> [(1,2,3),(3,4,3)...]
     faces = []
     for i in range(0, len(indices), 3):
-        x = indices[i] + 1
-        y = indices[i + 1] + 1
-        z = indices[i + 2] + 1
-        if (x != y) and (y != z) and (x != z):
-            faces.append([x,y,z])
+        x = indices[i]
+        y = indices[i + 1]
+        z = indices[i + 2]
+        faces.append([x,y,z])
     return faces
 
 def convert_forzavertex_to_blendervertex(forza_vertices: list[ForzaVertex]):
