@@ -23,25 +23,25 @@ class ForzaVertex:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
             elif size == 16:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
             elif size == 20:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
             elif size == 24:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
                 self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
@@ -49,7 +49,7 @@ class ForzaVertex:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
                 f.read(8)
@@ -57,7 +57,7 @@ class ForzaVertex:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
                 self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
@@ -66,7 +66,7 @@ class ForzaVertex:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 f.read(4)
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
@@ -76,7 +76,7 @@ class ForzaVertex:
                 x = struct.unpack(">f", f.read(4))[0]
                 y = struct.unpack(">f", f.read(4))[0]
                 z = struct.unpack(">f", f.read(4))[0]
-                self.position = Vector((x, y, z))
+                self.position = Vector((x, -z, y))
                 self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
                 self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
                 self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))

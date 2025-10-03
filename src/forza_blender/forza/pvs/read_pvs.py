@@ -31,16 +31,22 @@ class PVSZone:
         stream.skip(textures_use_length)
 
 class PVSModelInstance:
-    def __init__(self, model_index: int):
+    def __init__(self, model_index: int, translate_x = None, translate_y = None, translate_z = None):
         self.model_index = model_index
         self.position = (0,0,0)
+        if translate_x is not None and translate_y is not None and translate_z is not None:
+            self.position = (translate_x,-translate_z,translate_y)
         self.rotation = (0,0,0)
         self.scale = (0,0,0)
 
     def from_stream(stream: BinaryStream):
         model_index = stream.read_u16()
-        stream.skip(54)
-        return PVSModelInstance(model_index)
+        stream.skip(24)
+        translate_x: float = stream.read_f32()
+        translate_y: float = stream.read_f32()
+        translate_z: float = -stream.read_f32()
+        stream.skip(18)
+        return PVSModelInstance(model_index, translate_x, translate_y, translate_z)
 
 class PVSModel:
     # same here, some work needs to be done

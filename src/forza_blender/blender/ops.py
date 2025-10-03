@@ -74,12 +74,7 @@ def import_fm3(context, track_path: Path):
 
     # meshes
     meshes: list[ForzaMesh] = _get_instanced_meshes(path_bin, path_ribbon_pvs, context)
-    i = 0
-    z = len(meshes)
-    for instance_mesh in meshes: 
-        _add_mesh_to_scene(instance_mesh)
-        i = i + 1
-        print(f"[{i}/{z}]")
+    for instance_mesh in meshes: _add_mesh_to_scene(instance_mesh)
 
 
 def _get_textures(path_textures):
@@ -117,7 +112,7 @@ def _get_all_meshes_from_folder(context, path_bin):
         track_meshes.extend(_get_meshes_from_rmbbin(path_trackbin, path_bin, context))
     return track_meshes
 
-def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context):
+def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, translation = None):
     track_bin = RmbBin(path_trackbin)
     rmbbin_meshes = []
     track_bin.populate_objects_from_rmbbin()
@@ -127,7 +122,7 @@ def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context):
     for track_section in track_bin.track_sections:
         for track_subsection in track_section.subsections:
             meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
-            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices)
+            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, position=translation)
             rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
@@ -149,7 +144,7 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
     for pvs_model_instance in pvs.models_instances:
         try:
             path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
-            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context)
+            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.position)
             instance_meshes.extend(pvs_model_meshes)
         except:
             print("Problem getting mesh from " + path_to_rmbbin.name)
@@ -157,19 +152,17 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
         i = i + 1
         print(f"[{i}/{z}]")
         
-    print("Length of instanced meshes: " + str(len(instance_meshes)))
     return instance_meshes
 
 def _add_mesh_to_scene(forza_mesh):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
-    obj.rotation_euler = (math.radians(90), 0, 0) # TODO this might need to come after setting rotation from forza_mesh property
-
+    
     if forza_mesh.position != None:
-        obj.location = forza_mesh.position # (x,y,z)
+        obj.location = forza_mesh.position
     if forza_mesh.rotation != None:
-        obj.rotation_euler = forza_mesh.rotation # (x,y,z)
+        obj.rotation_euler = forza_mesh.rotation
     if forza_mesh.scale != None:
-        obj.scale = forza_mesh.scale # (x,y,z)
+        obj.scale = forza_mesh.scale
 
     bpy.context.collection.objects.link(obj)
