@@ -114,12 +114,12 @@ def _get_meshes(context, path_bin):
             for track_subsection in track_section.subsections: # each subsection is a mesh
                 meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
                 forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices)
-                blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
-                track_meshes.append(blender_mesh)
+                track_meshes.append(forza_mesh)
     return track_meshes
 
 def _add_meshes_to_scene(track_meshes):
-    for blender_mesh in track_meshes:
-        obj = bpy.data.objects.new(blender_mesh.name, blender_mesh) # TODO this was switched from ForzaMesh to Blender Mesh, so name might not be there anymore
+    for forza_mesh in track_meshes:
+        blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
+        obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
         obj.rotation_euler = (math.radians(90), 0, 0)
         bpy.context.collection.objects.link(obj)
