@@ -3,6 +3,7 @@ import bpy # type: ignore
 import math
 from bpy.types import Operator # type: ignore
 from bpy.props import StringProperty # type: ignore
+from mathutils import Matrix # type: ignore
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_utils import convert_forzamesh_into_blendermesh
 from forza_blender.forza.pvs.read_pvs import PVS
@@ -112,7 +113,7 @@ def _get_all_meshes_from_folder(context, path_bin):
         track_meshes.extend(_get_meshes_from_rmbbin(path_trackbin, path_bin, context))
     return track_meshes
 
-def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, translation = None, matrix_world = None):
+def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transform):
     track_bin = RmbBin(path_trackbin)
     rmbbin_meshes = []
     track_bin.populate_objects_from_rmbbin()
@@ -122,7 +123,7 @@ def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transl
     for track_section in track_bin.track_sections:
         for track_subsection in track_section.subsections:
             meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_subsection.name
-            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, position=translation, matrix_world=matrix_world)
+            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, transform=transform)
             rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
@@ -144,7 +145,7 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
     for pvs_model_instance in pvs.models_instances:
         try:
             path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
-            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.position, pvs_model_instance.matrix_world)
+            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.transform)
             instance_meshes.extend(pvs_model_meshes)
         except:
             print("Problem getting mesh from " + path_to_rmbbin.name)
@@ -158,13 +159,8 @@ def _add_mesh_to_scene(forza_mesh):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
     
-    if forza_mesh.position != None:
-        obj.location = forza_mesh.position
-    if forza_mesh.matrix_world != None:
-        mat4 = forza_mesh.matrix_world.to_4x4()
-        mat4.translation = forza_mesh.position
-        obj.matrix_world = mat4
-    if forza_mesh.scale != None:
-        obj.scale = forza_mesh.scale
+    m = Matrix(forza_mesh.transform)
+    m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
+    obj.matrix_world = m
 
     bpy.context.collection.objects.link(obj)
