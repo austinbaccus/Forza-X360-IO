@@ -121,7 +121,7 @@ def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transl
         raise RuntimeError("Forza version mismatch!")
     for track_section in track_bin.track_sections:
         for track_subsection in track_section.subsections:
-            meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
+            meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_subsection.name
             forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, position=translation, matrix_world=matrix_world)
             rmbbin_meshes.append(forza_mesh)
 
