@@ -1,12 +1,14 @@
 from .forza_vertex import ForzaVertex
 
 class ForzaMesh:
-    def __init__(self, name: str, material_name: str, indices: list[int], vertices: list[ForzaVertex], transform):
+    def __init__(self, name: str, material_name: str, indices: list[int], vertices: list[ForzaVertex], transform, model_index = None, textures = None):
         self.name = name
         self.material_name = material_name
         self.indices = indices
         self.vertices = vertices
         self.transform = transform
+        self.model_index = model_index
+        self.textures = textures
 
     def get_face_count(self):
         return len(self.indices) / 3

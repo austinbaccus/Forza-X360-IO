@@ -6,7 +6,7 @@ from bpy.props import StringProperty # type: ignore
 from mathutils import Matrix # type: ignore
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_utils import convert_forzamesh_into_blendermesh
-from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.pvs.read_pvs import PVS, PVSTexture
 from forza_blender.forza.pvs.pvs_util import BinaryStream
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
@@ -71,20 +71,23 @@ def import_fm3(context, track_path: Path):
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
     
     # textures
-    #textures = _get_textures(path_textures) # this takes a long time to finish. comment this line out unless you really need textures
+    #textures = _get_textures(path_textures)
 
     # meshes
     meshes: list[ForzaMesh] = _get_instanced_meshes(path_bin, path_ribbon_pvs, context)
-    for instance_mesh in meshes: _add_mesh_to_scene(instance_mesh)
+    for instance_mesh in meshes: _add_mesh_to_scene(instance_mesh, path_bin)
 
 
 def _get_textures(path_textures):
     textures = []
+    i = 0
     for path_texture in path_textures:
         filename = str(path_texture.resolve())
         if not filename.endswith("_B.bix"):
             img = Bix.get_image_from_bix(path_texture.resolve())
             textures.append(img)
+        i = i + 1
+        print(f"[{i}/{len(path_textures)}]")
     return textures
 
 def _get_all_meshes_from_folder(context, path_bin):
@@ -113,7 +116,7 @@ def _get_all_meshes_from_folder(context, path_bin):
         track_meshes.extend(_get_meshes_from_rmbbin(path_trackbin, path_bin, context))
     return track_meshes
 
-def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transform):
+def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transform, textures):
     track_bin = RmbBin(path_trackbin)
     rmbbin_meshes = []
     track_bin.populate_objects_from_rmbbin()
@@ -123,7 +126,7 @@ def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transf
     for track_section in track_bin.track_sections:
         for track_subsection in track_section.subsections:
             meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_subsection.name
-            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, transform=transform)
+            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures)
             rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
@@ -139,28 +142,55 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
             rmbbin_files[rmbbin_index] = path_rmbbin
 
     instance_meshes = []
-    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+
     i = 0
-    z = len(pvs.models_instances)
     for pvs_model_instance in pvs.models_instances:
         try:
+            pvs_model = pvs.models[pvs_model_instance.model_index]
+            pvs_texture_filenames = []
+            for texture_idx in pvs_model.textures:
+                pvs_texture_filenames.append(pvs.textures[texture_idx]) # this may be in decimal or hex, not sure yet
+
+
             path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
-            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.transform)
+            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.transform, pvs_texture_filenames)
             instance_meshes.extend(pvs_model_meshes)
         except:
             print("Problem getting mesh from " + path_to_rmbbin.name)
         
         i = i + 1
-        print(f"[{i}/{z}]")
+        print(f"[{i}/{len(pvs.models_instances)}]")
         
     return instance_meshes
 
-def _add_mesh_to_scene(forza_mesh):
+def _create_material_from_textures(mat_name, textures: PVSTexture, path_bin: Path):
+    # get texture
+    images = []
+    for texture in textures:
+        filepath = path_bin / Path(texture.texture_file_name) / ".bix"
+        img = Bix.get_image_from_bix(filepath.resolve())
+        images.append(img)
+
+    # create material
+    mat = bpy.data.materials.new(mat_name)
+
+    # TODO: add texture to material
+
+    return mat
+
+def _add_mesh_to_scene(forza_mesh, path_bin: Path):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
+
+    obj.data.materials.append(_create_material_from_textures(forza_mesh.name, forza_mesh.textures))
     
     m = Matrix(forza_mesh.transform)
     m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
     obj.matrix_world = m
 
     bpy.context.collection.objects.link(obj)
+
+    # ....
+
+    

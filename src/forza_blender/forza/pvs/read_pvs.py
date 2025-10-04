@@ -56,19 +56,40 @@ class PVSModelInstance:
         return PVSModelInstance(model_index, transform)
 
 class PVSModel:
-    # same here, some work needs to be done
-    def from_stream(stream: BinaryStream):
+    def __init__(self, model_index, textures, shaders):
+        self.model_index = model_index
+        self.textures = textures
+        self.shaders = shaders
+
+    def from_stream(stream: BinaryStream, model_index):
         textures_references_length = stream.read_u32()
-        stream.skip(4 * textures_references_length)
-        unk2_length = stream.read_u32()
-        stream.skip(4 * unk2_length + 64 + 16)
+        textures = []
+        for i in range(textures_references_length):
+            textures.append(stream.read_u32())
+        shader_length = stream.read_u32()
+        shaders = []
+        for i in range(shader_length):
+            shaders.append(stream.read_u32())
+        stream.skip(64 + 16)
+
+        return PVSModel(model_index, textures, shaders)
+
+class PVSTexture:
+    def __init__(self, texture_file_name):
+        self.texture_file_name = texture_file_name
+        
+    def from_stream(stream: BinaryStream):
+        texture_file_name = stream.read_u32()
+        stream.skip(24)
+
+        return PVSTexture(texture_file_name)
 
 class PVS:
-    # fill this in with stuff like texture references, transforms, translations, etc.
-    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel]):
+    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture]):
         self.header = header
         self.models_instances = models_instances
         self.models = models
+        self.textures = textures
 
     def from_stream(stream: BinaryStream):
         header = PVSHeader.from_stream(stream)
@@ -77,12 +98,12 @@ class PVS:
         for _ in range(zones_length):
             PVSZone.from_stream(stream) # don't store since we don't need this structure yet
         textures_length = stream.read_u32()
-        stream.skip(28 * textures_length) # TODO: make PVSTexture class
+        textures = [PVSTexture.from_stream(stream) for _ in range(textures_length)]
         shaders_length = stream.read_u32()
         for _ in range(shaders_length):
             stream.read_string() # a string with 32-bit size prefix
         models_instances_length = stream.read_u32()
         models_instances = [PVSModelInstance.from_stream(stream) for _ in range(models_instances_length)]
         models_length = stream.read_u32()
-        models = [PVSModel.from_stream(stream) for _ in range(models_length)]
-        return PVS(header, models_instances, models)
+        models = [PVSModel.from_stream(stream,idx) for idx in range(models_length)]
+        return PVS(header, models_instances, models, textures)
