@@ -1,5 +1,4 @@
 from .pvs_util import *
-import mathutils
 
 class PVSHeader:
     def __init__(self, version: int):
@@ -32,16 +31,9 @@ class PVSZone:
         stream.skip(textures_use_length)
 
 class PVSModelInstance:
-    def __init__(self, model_index: int, translate_x = None, translate_y = None, translate_z = None, matrix_world = None):
+    def __init__(self, model_index: int, transform: list[list[float]]):
         self.model_index = model_index
-        self.position = (0,0,0)
-        if translate_x is not None and translate_y is not None and translate_z is not None:
-            self.position = (translate_x,-translate_z,translate_y)
-        self.rotation = (0,0,0)
-        self.matrix_world = None
-        if matrix_world is not None:
-            self.matrix_world = matrix_world
-        self.scale = (0,0,0)
+        self.transform = transform
 
     def from_stream(stream: BinaryStream):
         model_index = stream.read_u16()
@@ -49,19 +41,19 @@ class PVSModelInstance:
         
         translate_x: float = stream.read_f32()
         translate_y: float = stream.read_f32()
-        translate_z: float = -stream.read_f32()
+        translate_z: float = stream.read_f32()
 
         r0 = (stream.read_f16(),stream.read_f16(),stream.read_f16())
         r1 = (stream.read_f16(),stream.read_f16(),stream.read_f16())
         r2 = (stream.read_f16(),stream.read_f16(),stream.read_f16())
 
-        matrix_world = mathutils.Matrix((r0, r1, r2))
-        if r0[0] == 1 and r0[1] == 0 and r0[2] == 0:
-            if r1[0] == 0 and r1[1] == 1 and r1[2] == 0:
-                if r2[0] == 0 and r2[1] == 0 and r2[2] == -1:
-                    matrix_world = None # if it's one of the pvs_model_instances with a "blank" rotation matrix, don't do anything
-                
-        return PVSModelInstance(model_index, translate_x, translate_y, translate_z, matrix_world)
+        transform = [
+            [r0[0], r1[0], r2[0], translate_x],
+            [r0[1], r1[1], r2[1], translate_y],
+            [r0[2], r1[2], r2[2], translate_z],
+            [0, 0, 0, 1]
+        ]
+        return PVSModelInstance(model_index, transform)
 
 class PVSModel:
     # same here, some work needs to be done
