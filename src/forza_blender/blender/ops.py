@@ -112,7 +112,7 @@ def _get_all_meshes_from_folder(context, path_bin):
         track_meshes.extend(_get_meshes_from_rmbbin(path_trackbin, path_bin, context))
     return track_meshes
 
-def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, translation = None):
+def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, translation = None, matrix_world = None):
     track_bin = RmbBin(path_trackbin)
     rmbbin_meshes = []
     track_bin.populate_objects_from_rmbbin()
@@ -122,7 +122,7 @@ def _get_meshes_from_rmbbin(path_trackbin: Path, path_bin: Path, context, transl
     for track_section in track_bin.track_sections:
         for track_subsection in track_section.subsections:
             meshName: str = path_bin.name + "_" + track_section.name + "_" + track_subsection.name
-            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, position=translation)
+            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, position=translation, matrix_world=matrix_world)
             rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
@@ -144,7 +144,7 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
     for pvs_model_instance in pvs.models_instances:
         try:
             path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
-            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.position)
+            pvs_model_meshes = _get_meshes_from_rmbbin(path_to_rmbbin, path_bin, context, pvs_model_instance.position, pvs_model_instance.matrix_world)
             instance_meshes.extend(pvs_model_meshes)
         except:
             print("Problem getting mesh from " + path_to_rmbbin.name)
@@ -160,8 +160,10 @@ def _add_mesh_to_scene(forza_mesh):
     
     if forza_mesh.position != None:
         obj.location = forza_mesh.position
-    if forza_mesh.rotation != None:
-        obj.rotation_euler = forza_mesh.rotation
+    if forza_mesh.matrix_world != None:
+        mat4 = forza_mesh.matrix_world.to_4x4()
+        mat4.translation = forza_mesh.position
+        obj.matrix_world = mat4
     if forza_mesh.scale != None:
         obj.scale = forza_mesh.scale
 
