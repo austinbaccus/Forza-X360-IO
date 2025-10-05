@@ -15,7 +15,7 @@ class ForzaTrackSubSection:
         # name
         length = int.from_bytes(f.read(4), byteorder="big", signed=False)
         name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("ascii")
+        self.name : str = name_bytes.decode("latin_1")
 
         # lod
         self.lod : int = int.from_bytes(f.read(4), byteorder="big", signed=False)

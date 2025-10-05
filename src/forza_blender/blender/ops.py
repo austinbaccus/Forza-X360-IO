@@ -135,7 +135,7 @@ def _generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context) -> list[ForzaM
             pvs_model_meshes = _generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_model_instance.transform, pvs_texture_filenames)
             instance_meshes.extend(pvs_model_meshes)
         except:
-            print("Problem getting mesh from " + path_to_rmbbin.name)
+            print("Problem getting mesh from model index", pvs_model_instance.model_index)
         
         i = i + 1
         print(f"[{i}/{len(pvs.models_instances)}]")
