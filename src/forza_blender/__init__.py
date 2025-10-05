@@ -10,7 +10,7 @@ bl_info = {
 
 import importlib
 import bpy
-from bpy.props import EnumProperty, StringProperty
+from bpy.props import EnumProperty, StringProperty, BoolProperty
 from forza_blender.blender import ui, ops
 
 def reload(module):
@@ -39,6 +39,21 @@ def register():
             ],
             default='FM3',
         )
+    bpy.types.Scene.generate_textures = BoolProperty(
+        name="Generate textures",
+        description="",
+        default=True,
+    )
+    bpy.types.Scene.generate_mats = BoolProperty(
+        name="Generate materials",
+        description="",
+        default=True,
+    )
+    bpy.types.Scene.generate_lods = BoolProperty(
+        name="Generate LODs",
+        description="",
+        default=True,
+    )
 
     bpy.types.Scene.forza_last_folder = StringProperty(
         name="Selected Folder",
@@ -57,3 +72,9 @@ def unregister():
         del bpy.types.Scene.forza_last_folder
     if hasattr(bpy.types.Scene, "forza_selection"):
         del bpy.types.Scene.forza_selection
+    if hasattr(bpy.types.Scene, "generate_textures"):
+        del bpy.types.Scene.generate_textures
+    if hasattr(bpy.types.Scene, "generate_mats"):
+        del bpy.types.Scene.generate_mats
+    if hasattr(bpy.types.Scene, "generate_lods"):
+        del bpy.types.Scene.generate_lods

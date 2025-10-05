@@ -1,4 +1,4 @@
-import bpy
+import bpy # type: ignore
 
 class FORZA_PT_main(bpy.types.Panel):
     bl_label = "Forza"
@@ -9,6 +9,10 @@ class FORZA_PT_main(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+
+        layout.prop(context.scene, "generate_textures", text="Generate textures")
+        layout.prop(context.scene, "generate_mats", text="Generate materials")
+        layout.prop(context.scene, "generate_lods", text="Generate LODs")
 
         col = layout.column(align=True)
         col.label(text="Which Forza?")
