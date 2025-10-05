@@ -53,6 +53,8 @@ class FORZA_OT_pick_folder(Operator):
 
 classes = (FORZA_OT_pick_folder,FORZA_OT_import)
 
+path_decompressed_textures: Path = Path("X:/3d/games/forza/tracks/amalfi_coast/amalfi_huge/textures/bmp")
+
 def register():
     for c in classes: bpy.utils.register_class(c)
 
@@ -71,12 +73,16 @@ def import_fm3(context, track_path: Path):
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
     
     # textures
-    #textures = _get_textures(path_textures)
+    #textures = _save_textures(path_textures)
 
     # meshes
     meshes: list[ForzaMesh] = _get_instanced_meshes(path_bin, path_ribbon_pvs, context)
-    for instance_mesh in meshes: _add_mesh_to_scene(instance_mesh, path_bin)
-
+    i = 0
+    for instance_mesh in meshes:
+        if "LOD01" not in instance_mesh.name and "LOD02" not in instance_mesh.name:
+            _add_mesh_to_scene(instance_mesh, path_bin)
+            i = i + 1
+            print(f"[{i}/{len(meshes)}]")
 
 def _get_textures(path_textures):
     textures = []
@@ -96,22 +102,6 @@ def _get_all_meshes_from_folder(context, path_bin):
     for path_trackbin in path_bin.glob("*.rmb.bin"):
         if path_trackbin.name.endswith(".sky.rmb.bin"):
             continue # ignore for now - this has special logic
-        else:
-            track_model_index = int(str(path_trackbin.name).split('.')[1]) # get .rmb.bin model_int out of filename
-            #if track_model_index not in model_indexes:
-                #continue # if it's not in the model indexes... ignore it
-            
-        # continue here...
-        # track_model_index 13 --> Amalfiout.00013.rmb.bin
-
-        # great! now you have the pvs_model loaded
-
-        # loop through each model_instance, 
-        #   get the position+rotation data for it
-        #   get the model mesh associated with it
-        #   duplicate it!
-        pvs_model_instances = []
-        # ...
 
         track_meshes.extend(_get_meshes_from_rmbbin(path_trackbin, path_bin, context))
     return track_meshes
@@ -165,17 +155,56 @@ def _get_instanced_meshes(path_bin, path_ribbon_pvs, context) -> list[ForzaMesh]
     return instance_meshes
 
 def _create_material_from_textures(mat_name, textures: PVSTexture, path_bin: Path):
-    # get texture
     images = []
     for texture in textures:
-        filepath = path_bin / Path(texture.texture_file_name) / ".bix"
-        img = Bix.get_image_from_bix(filepath.resolve())
-        images.append(img)
+        hex_str = f"_0x{texture.texture_file_name:08x}.bmp" #change to .bix if loading .bix
+        full_texture_path = path_decompressed_textures / Path(hex_str)
+        if full_texture_path.is_file():
+
+            img = bpy.data.images.load(str(full_texture_path.resolve())) # load from .dds/bmp/png/etc
+            #img = Bix.get_image_from_bix(filepath.resolve()) # load from .bix
+            images.append(img)
 
     # create material
     mat = bpy.data.materials.new(mat_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
 
-    # TODO: add texture to material
+    # nodes
+    if len(images) > 0:
+        nodes.clear()
+        tex = nodes.new("ShaderNodeTexImage"); tex.image = images[0]; tex.location = (-600, 0)
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0)
+        out = nodes.new("ShaderNodeOutputMaterial"); out.location = (200, 0)
+
+        # link
+        links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+
+    return mat
+
+import bpy
+
+def quick_image_material(obj_name, image_path, mat_name="ImageMat"):
+    # Grab things
+    obj = bpy.data.objects[obj_name]
+    img = bpy.data.images.load(image_path)
+
+    # Make/get material with nodes
+    mat = bpy.data.materials.get(mat_name) or bpy.data.materials.new(mat_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
+
+    # Simple node setup
+    nodes.clear()
+    tex = nodes.new("ShaderNodeTexImage"); tex.image = img; tex.location = (-600, 0)
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0)
+    out = nodes.new("ShaderNodeOutputMaterial"); out.location = (200, 0)
+
+    links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
     return mat
 
@@ -183,14 +212,12 @@ def _add_mesh_to_scene(forza_mesh, path_bin: Path):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 
-    obj.data.materials.append(_create_material_from_textures(forza_mesh.name, forza_mesh.textures))
+    mat = _create_material_from_textures(forza_mesh.name, forza_mesh.textures, path_bin)
+    if obj.data.materials: obj.data.materials[0] = mat
+    else: obj.data.materials.append(mat)
     
     m = Matrix(forza_mesh.transform)
     m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
     obj.matrix_world = m
 
     bpy.context.collection.objects.link(obj)
-
-    # ....
-
-    
