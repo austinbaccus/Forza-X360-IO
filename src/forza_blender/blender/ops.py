@@ -36,9 +36,7 @@ class FORZA_OT_pick_folder(Operator):
             return {'CANCELLED'}
 
         context.scene.forza_last_folder = str(dir_path)
-        #forza_selection = context.scene.forza_selection # getattr(context.scene, "forza_selection", "FM3")
 
-        # TODO: replace with your processing
         print(f"[FORZA] Folder selected: {dir_path} | FM mode: {context.scene.forza_selection}")
         self.report({'INFO'}, f"Folder: {dir_path.name}")
         self.report({'INFO'}, f"Folder: {dir_path.name} (Mode: {context.scene.forza_selection})")
