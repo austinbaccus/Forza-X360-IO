@@ -92,7 +92,7 @@ class PVS:
         self.textures = textures
 
     def from_stream(stream: BinaryStream):
-        header = PVSHeader.from_stream(stream)
+        header = PVSHeader.from_stream(stream) # type: ignore
         stream.skip(2 + 2)
         zones_length = stream.read_u32()
         for _ in range(zones_length):
