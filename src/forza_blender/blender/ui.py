@@ -10,33 +10,80 @@ class FORZA_PT_main(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        layout.prop(context.scene, "generate_textures", text="Generate textures")
+        # checkboxes
+        layout.prop(context.scene, "use_pregenerated_textures", text="Use pre-generated textures")
         layout.prop(context.scene, "generate_mats", text="Generate materials")
         layout.prop(context.scene, "generate_lods", text="Generate LODs")
 
-        col = layout.column(align=True)
-        col.label(text="Which Forza?")
-        enum_items = context.scene.bl_rna.properties["forza_selection"].enum_items
-        for item in enum_items:
-            col.prop_enum(context.scene, "forza_selection", item.identifier)
+        # forza game picker
+        _draw_forza_game_picker(context, layout)
 
-        box = layout.box()
-        box.label(text="Inputs")
-        row = box.row(align=True)
-        row.operator("forza.pick_folder", icon="FILE_FOLDER")
+        # forza models
+        _draw_track_import_box(context, layout)
 
-        # file path string
-        folder_path = context.scene.forza_last_folder
-        if folder_path:
-            sub = box.row()
-            # emboss=False makes it label-like but still selectable; icon works here
-            sub.prop(context.scene, "forza_last_folder", text="", emboss=False, icon='FILE_FOLDER')
-        else:
-            box.label(text="No folder selected", icon='INFO')
-
-        layout.operator("forza.import", icon="CUBE")
-
+        # forza textures
+        if context.scene.use_pregenerated_textures:
+            _draw_textures_import_box(context, layout)
         
+        # import track button
+        is_import_btn_enabled: bool = True
+        is_texture_folder_null_or_empty = context.scene.forza_last_texture_folder is None or context.scene.forza_last_texture_folder == ''
+        is_track_folder_null_or_empty = context.scene.forza_last_track_folder is None or context.scene.forza_last_track_folder == ''
+
+        if context.scene.use_pregenerated_textures:
+            is_import_btn_enabled = not is_track_folder_null_or_empty and not is_texture_folder_null_or_empty
+        else:
+            is_import_btn_enabled = not is_track_folder_null_or_empty
+
+        _draw_import_button(context, layout, is_import_btn_enabled)
+
+def _draw_forza_game_picker(context, layout):
+    layout.separator()
+    col = layout.column(align=True)
+    col.label(text="Which Forza?")
+    enum_items = context.scene.bl_rna.properties["forza_selection"].enum_items
+    for item in enum_items:
+        col.prop_enum(context.scene, "forza_selection", item.identifier)
+
+def _draw_textures_import_box(context, layout):
+    layout.separator()
+    box_textures = layout.box()
+    box_textures.label(text="Track Textures Folder")
+    row2 = box_textures.row(align=True)
+    row2.operator("forza.pick_texture_folder", icon="FILE_FOLDER")
+    folder_texture_path = context.scene.forza_last_texture_folder
+    if folder_texture_path:
+        sub2 = box_textures.row()
+        sub2.prop(context.scene, "forza_last_texture_folder", text="", emboss=False, icon='FILE_FOLDER')
+    else:
+        box_textures.label(text="No texture folder selected", icon='INFO')
+
+def _draw_track_import_box(context, layout):
+    layout.separator()
+    box_models = layout.box()
+    box_models.label(text="Track Folder")
+    box_models_row_1 = box_models.row(align=True)
+    box_models_row_1.operator("forza.pick_track_folder", icon="FILE_FOLDER")
+    folder_track_path = context.scene.forza_last_track_folder
+    if folder_track_path:
+        box_models_row_2 = box_models.row()
+        box_models_row_2.prop(context.scene, "forza_last_track_folder", text="", emboss=False, icon='FILE_FOLDER')
+    else:
+        box_models.label(text="No track folder selected", icon='INFO')
+    box_models_row_2 = box_models.row(align=True)
+    box_models_row_2.operator("forza.generate_textures", icon="CUBE")
+
+    is_track_folder_null_or_empty = context.scene.forza_last_track_folder is None or context.scene.forza_last_track_folder == ''
+    if is_track_folder_null_or_empty:
+        box_models_row_2.enabled = False
+    else:
+        box_models_row_2.enabled = True
+
+def _draw_import_button(context, layout, enabled: bool):
+    layout.separator()
+    import_row = layout.row()
+    import_row.operator("forza.import_track", icon="CUBE")
+    import_row.enabled = enabled
 
 classes = (FORZA_PT_main,)
 

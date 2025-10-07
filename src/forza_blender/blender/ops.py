@@ -9,44 +9,78 @@ from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blenderme
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
 
-class FORZA_OT_import(Operator):
-    bl_idname = "forza.import"
-    bl_label = "Import"
+class FORZA_OT_track_import(Operator):
+    bl_idname = "forza.import_track"
+    bl_label = "Import Track Models"
     
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
-            import_fm3(context, context.scene.forza_last_folder)
+            import_fm3(context, context.scene.forza_last_track_folder)
+        return {'FINISHED'}
+    
+class FORZA_OT_texture_import(Operator):
+    bl_idname = "forza.import_textures"
+    bl_label = "Import Textures"
+    
+    def execute(self, context):
+        if context.scene.forza_selection == "FM3":
+            print()
+            #import_fm3(context, context.scene.forza_last_track_folder)
+        return {'FINISHED'}
+    
+class FORZA_OT_generate_textures(Operator):
+    bl_idname = "forza.generate_textures"
+    bl_label = "Generate Textures"
+    
+    def execute(self, context):
+        if context.scene.forza_selection == "FM3":
+            print()
         return {'FINISHED'}
 
-class FORZA_OT_pick_folder(Operator):
+class FORZA_OT_pick_track_folder(Operator):
     """Choose a folder and return its path"""
-    bl_idname = "forza.pick_folder"
-    bl_label = "Pick Folder"
+    bl_idname = "forza.pick_track_folder"
+    bl_label = "Pick Track Folder"
     bl_description = "Open a file browser to select a folder"
     directory: StringProperty(name="Folder", description="Folder to process", subtype='DIR_PATH') # type: ignore
 
     def execute(self, context):
-
         dir_path = Path(bpy.path.abspath(self.directory)).resolve()
 
         if not dir_path.exists() or not dir_path.is_dir():
             self.report({'ERROR'}, "Please pick a valid folder")
             return {'CANCELLED'}
 
-        context.scene.forza_last_folder = str(dir_path)
+        context.scene.forza_last_track_folder = str(dir_path)
+        return {'FINISHED'}
 
-        print(f"[FORZA] Folder selected: {dir_path} | FM mode: {context.scene.forza_selection}")
-        self.report({'INFO'}, f"Folder: {dir_path.name}")
-        self.report({'INFO'}, f"Folder: {dir_path.name} (Mode: {context.scene.forza_selection})")
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
+class FORZA_OT_pick_texture_folder(Operator):
+    """Choose a folder and return its path"""
+    bl_idname = "forza.pick_texture_folder"
+    bl_label = "Pick Texture Folder"
+    bl_description = "Open a file browser to select a folder"
+    directory: StringProperty(name="Folder", description="Folder to process", subtype='DIR_PATH') # type: ignore
+
+    def execute(self, context):
+        dir_path = Path(bpy.path.abspath(self.directory)).resolve()
+
+        if not dir_path.exists() or not dir_path.is_dir():
+            self.report({'ERROR'}, "Please pick a valid folder")
+            return {'CANCELLED'}
+
+        context.scene.forza_last_texture_folder = str(dir_path)
         return {'FINISHED'}
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_pick_folder,FORZA_OT_import)
+classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_texture_import,FORZA_OT_generate_textures)
 
-path_decompressed_textures: Path = Path("X:/3d/games/forza/tracks/amalfi_coast/amalfi_huge/textures/bmp")
 
 def register():
     for c in classes: bpy.utils.register_class(c)
@@ -77,7 +111,6 @@ def import_fm3(context, track_path: Path):
         elif "LOD01" not in instance_mesh.name and "LOD02" not in instance_mesh.name: _add_mesh_to_scene(context, instance_mesh, path_bin) # TODO needs a more elegant solution  
         i = i + 1
         print(f"[{i}/{len(meshes)}]")
-        
 
 def _get_textures_from_track(path_textures):
     textures = []

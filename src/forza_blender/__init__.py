@@ -9,8 +9,8 @@ bl_info = {
 }
 
 import importlib
-import bpy
-from bpy.props import EnumProperty, StringProperty, BoolProperty
+import bpy # type: ignore
+from bpy.props import EnumProperty, StringProperty, BoolProperty # type: ignore
 from forza_blender.blender import ui, ops
 
 def reload(module):
@@ -22,24 +22,12 @@ def register():
             name="Forza Mode",
             description="Select which Forza game you are importing",
             items=[
-                ('FM1', 'FM1', 'Mode FM1'),
-                ('FM2', 'FM2', 'Mode FM2'),
                 ('FM3', 'FM3', 'Mode FM3'),
                 ('FM4', 'FM4', 'Mode FM4'),
-                ('FM5', 'FM5', 'Mode FM5'),
-                ('FM6', 'FM6', 'Mode FM6'),
-                ('FM7', 'FM7', 'Mode FM7'),
-                ('FM8', 'FM8', 'Mode FM8'),
-                ('FH1', 'FH1', 'Mode FH1'),
-                ('FH2', 'FH2', 'Mode FH2'),
-                ('FH3', 'FH3', 'Mode FH3'),
-                ('FH4', 'FH4', 'Mode FH4'),
-                ('FH5', 'FH5', 'Mode FH5'),
-                ('FH6', 'FH6', 'Mode FH6'),
             ],
             default='FM3',
         )
-    bpy.types.Scene.generate_textures = BoolProperty(
+    bpy.types.Scene.use_pregenerated_textures = BoolProperty(
         name="Generate textures",
         description="",
         default=True,
@@ -55,8 +43,14 @@ def register():
         default=True,
     )
 
-    bpy.types.Scene.forza_last_folder = StringProperty(
-        name="Selected Folder",
+    bpy.types.Scene.forza_last_track_folder = StringProperty(
+        name="Selected Track Folder",
+        subtype='DIR_PATH',
+        default=""
+    )
+
+    bpy.types.Scene.forza_last_texture_folder = StringProperty(
+        name="Selected Texture Folder",
         subtype='DIR_PATH',
         default=""
     )
@@ -68,8 +62,10 @@ def register():
 def unregister():
     ui.unregister()
     ops.unregister()
-    if hasattr(bpy.types.Scene, "forza_last_folder"):
-        del bpy.types.Scene.forza_last_folder
+    if hasattr(bpy.types.Scene, "forza_last_track_folder"):
+        del bpy.types.Scene.forza_last_track_folder
+    if hasattr(bpy.types.Scene, "forza_last_texture_folder"):
+        del bpy.types.Scene.forza_last_texture_folder
     if hasattr(bpy.types.Scene, "forza_selection"):
         del bpy.types.Scene.forza_selection
     if hasattr(bpy.types.Scene, "generate_textures"):
