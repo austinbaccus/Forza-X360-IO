@@ -1,6 +1,6 @@
 import struct
 from typing import List
-from ..utils.mesh_utils import generate_triangle_list, generate_triangle_list, generate_vertices
+from ..utils.mesh_util import generate_triangle_list, generate_triangle_list, generate_vertices
 from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
 from .forza_vertex_type import ForzaVertexType

@@ -3,7 +3,7 @@ from typing import List
 from mathutils import Vector # type: ignore
 from .index_type import IndexType
 from .forza_vertex import ForzaVertex
-from ..utils.mesh_utils import calculate_vertex_count, calculate_face_count, read_indices
+from ..utils.mesh_util import calculate_vertex_count, calculate_face_count, read_indices
 
 class ForzaTrackSubSection:
     def __init__(self, f):
