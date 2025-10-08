@@ -9,23 +9,15 @@ from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blenderme
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
 
+indexed_textures = {}
+
 class FORZA_OT_track_import(Operator):
     bl_idname = "forza.import_track"
     bl_label = "Import Track Models"
     
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
-            import_fm3(context, context.scene.forza_last_track_folder)
-        return {'FINISHED'}
-    
-class FORZA_OT_texture_import(Operator):
-    bl_idname = "forza.import_textures"
-    bl_label = "Import Textures"
-    
-    def execute(self, context):
-        if context.scene.forza_selection == "FM3":
-            print()
-            #import_fm3(context, context.scene.forza_last_track_folder)
+            _import_fm3(context, context.scene.forza_last_track_folder)
         return {'FINISHED'}
     
 class FORZA_OT_generate_textures(Operator):
@@ -34,7 +26,10 @@ class FORZA_OT_generate_textures(Operator):
     
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
-            print()
+            path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
+            path_textures: Path = list(path_bin.glob("*.bix"))
+            _populate_indexed_textures_from_track(path_textures, True)
+            # do something with indexed_textures, because it does not persist (I think)
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -79,7 +74,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_texture_import,FORZA_OT_generate_textures)
+classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures)
 
 
 def register():
@@ -88,7 +83,7 @@ def register():
 def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
-def import_fm3(context, track_path: Path):
+def _import_fm3(context, track_path: Path):
     if type(track_path) is not Path:
         track_path = Path(track_path)
 
@@ -100,8 +95,10 @@ def import_fm3(context, track_path: Path):
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
     
     # textures
-    if context.scene.generate_textures: 
-        textures = _get_textures_from_track(path_textures)
+    
+    if not context.scene.use_pregenerated_textures:
+        raise RuntimeError("Importing tracks without pre-generated textures is not implemented yet.")
+        #textures = _get_textures_from_track(path_textures)
 
     # meshes
     meshes: list[ForzaMesh] = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
@@ -112,17 +109,16 @@ def import_fm3(context, track_path: Path):
         i = i + 1
         print(f"[{i}/{len(meshes)}]")
 
-def _get_textures_from_track(path_textures):
-    textures = []
+def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
     i = 0
     for path_texture in path_textures:
         filename = str(path_texture.resolve())
         if not filename.endswith("_B.bix"):
-            img = Bix.get_image_from_bix(path_texture.resolve())
-            textures.append(img)
+            img = Bix.get_image_from_bix(path_texture.resolve(), save_image=save_files)
+            texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
+            indexed_textures[texture_idx] = img
         i = i + 1
         print(f"[{i}/{len(path_textures)}]")
-    return textures
 
 def _get_meshes_from_track(path_bin: Path, path_ribbon_pvs: Path, context) -> list[ForzaMesh]:
     return generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context)
@@ -132,6 +128,7 @@ def _add_mesh_to_scene(context, forza_mesh, path_bin: Path):
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 
     if context.scene.generate_mats:
+        raise RuntimeError("Generating materials is not implemented yet.")
         mat = generate_material_from_textures(forza_mesh.name, forza_mesh.textures, path_bin)
         if obj.data.materials: obj.data.materials[0] = mat
         else: obj.data.materials.append(mat)

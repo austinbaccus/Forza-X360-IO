@@ -6,7 +6,7 @@ import os
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
-    def get_image_from_bix(filepath):
+    def get_image_from_bix(filepath, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
         # the second file ends with "_B". this file contains the actual pixels I think.
         path = Path(filepath)
@@ -69,87 +69,37 @@ class Bix():
         else:
             raise ValueError("Unsupported deswizzling format!")
 
-        img = None
-        try:
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".dds")
-            tmp.write(dds)
-            tmp.flush()
-            tmp.close()
-            img = bpy.data.images.load(tmp.name, check_existing=False)
-            img.name = filename
-            if hasattr(img, "colorspace_settings"):
-                img.colorspace_settings.name = "sRGB"
-            img.pack()
-        finally:
+        if save_image:
+            image_filename = "textures/" + filename + ".dds"
+            image_filepath = directory / image_filename
+            with open(image_filepath.resolve(), 'wb') as f: 
+                f.write(dds)
+            with open(image_filepath.resolve(), 'r') as f:
+                image_filepath_Str = str(image_filepath.resolve())
+                img = bpy.data.images.load(image_filepath_Str, check_existing=True)
+                img.name = filename
+                if hasattr(img, "colorspace_settings"):
+                    img.colorspace_settings.name = "sRGB"
+                img.pack()
+                return img
+        else:
+            img = None
             try:
-                os.remove(tmp.name)
-            except Exception:
-                pass
-        return img
-
-    def save_image_from_bix(filepath):
-        # note: each texture (in FM3 at least) is comprised of two files. 
-        # the second file ends with "_B". this file contains the actual pixels I think.
-        path = Path(filepath)
-        directory = path.parent
-        filename = path.stem
-        filetype = path.suffix 
-
-        if filename.endswith("_B"):
-            raise ValueError("Don't load the `_B` version fo a texture file.")
-
-        # get image a and b names
-        file_a_name: str = filename + filetype
-        file_b_name: str = filename + "_B" + filetype
-
-        # image a and b paths
-        file_a_path: str = directory / file_a_name
-        file_b_path: str = directory / file_b_name
-
-        width: int = None
-        height: int = None
-        levels: int = None
-        format: int = None
-        total_size: int = None
-        main_size: int = None
-
-        # read file `a` (Big Endian format)
-        with open(file_a_path, "rb") as f:
-            num = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            if num != 1112102960 and num != 1112102961:
-                raise TypeError("Unrecognized bix file format. " + str(num))
-
-            width = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            height = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            levels = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            format = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            total_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            main_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
-
-        # read file `b`
-        with open(file_b_path, "rb") as f:
-            dumped_image_data = bytearray(Path(file_b_path).read_bytes())
-
-            if format == 438305108: # D3DFMT_DXT5
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
-                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
-            elif format == 438305106: # D3DFMT_DXT1
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
-                dds = Bix.wrap_as_dds_dx10_bc(71, blocks, width, height) # DXGI_FORMAT_BC1_UNORM
-            elif format == 438305147: # D3DFMT_DXT5A
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
-                dds = Bix.wrap_as_dds_dx10_bc(80, blocks, width, height) # DXGI_FORMAT_BC4_UNORM
-            elif format == 438305137: # D3DFMT_DXN
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
-                dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
-            else:
-                raise ValueError("Unsupported deswizzling format!")
-
-            with open(filename + ".dds",'wb') as f: f.write(dds)
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".dds")
+                tmp.write(dds)
+                tmp.flush()
+                tmp.close()
+                img = bpy.data.images.load(tmp.name, check_existing=False)
+                img.name = filename
+                if hasattr(img, "colorspace_settings"):
+                    img.colorspace_settings.name = "sRGB"
+                img.pack()
+            finally:
+                try:
+                    os.remove(tmp.name)
+                except Exception:
+                    pass
+            return img
 
     def wrap_as_dds_dx10_bc(fmt_dxgi: int, blocks_linear: bytes, width: int, height: int) -> bytes:
         # DXGI_FORMAT values: BC1=71, BC2=74, BC3=77, BC4U=80, BC5U=83, BC6H_UF16=95, BC7=98
