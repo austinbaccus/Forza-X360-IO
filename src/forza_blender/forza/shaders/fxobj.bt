@@ -1,0 +1,172 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.1 Binary Template
+//
+//      File: CFXShader resource
+//   Authors: Doliman100
+//   Version: 0.0
+//   Purpose: 
+//  Category: 
+// File Mask: *.fxobj
+//  ID Bytes: 00 00 01 01
+//   History: 
+//------------------------------------------------
+
+BigEndian();
+BitfieldRightToLeft();
+
+typedef struct {
+    struct D3DCOMMON {
+        enum D3DRESOURCETYPE {
+            D3DRTYPE_NONE = 0,
+            D3DRTYPE_VERTEXBUFFER = 1,
+            D3DRTYPE_INDEXBUFFER = 2,
+            D3DRTYPE_TEXTURE = 3,
+            D3DRTYPE_SURFACE = 4,
+            D3DRTYPE_VERTEXDECLARATION = 5,
+            D3DRTYPE_VERTEXSHADER = 6,
+            D3DRTYPE_PIXELSHADER = 7,
+            D3DRTYPE_CONSTANTBUFFER = 8,
+            D3DRTYPE_COMMANDBUFFER = 9,
+            D3DRTYPE_ASYNCCOMMANDBUFFERCALL = 10,
+            D3DRTYPE_PERFCOUNTERBATCH = 11,
+            D3DRTYPE_OCCLUSIONQUERYBATCH = 12
+        } TYPE : 4;
+        uint32 LOCKID : 4;
+        uint32 LOCKCOUNT : 4;
+        uint32 INTREFCOUNT : 5;
+        uint32 COMMMANDBUFFER_USED : 1;
+        uint32 ASYNCLOCK  : 1;
+        uint32 ASYNCLOCK_LOCKED : 1;
+        uint32 D3DCREATED : 1;
+        uint32 CPU_CACHED_MEMORY : 1;
+        uint32 RUNCOMMANDBUFFER_TIMESTAMP : 1;
+        uint32 ASYNCLOCK_PENDING : 6;
+        uint32 UNUSED : 3;
+    } Common;
+    uint32 ReferenceCount;
+    uint32 Fence;
+    uint32 ReadFence;
+    uint32 Identifier;
+    uint32 BaseFlush;
+} D3DResource;
+
+typedef struct {
+    enum GPUVERTEXFORMAT {
+        GPUVERTEXFORMAT_8_8_8_8 = 6,
+        GPUVERTEXFORMAT_2_10_10_10 = 7,
+        GPUVERTEXFORMAT_10_11_11 = 16,
+        GPUVERTEXFORMAT_11_11_10 = 17,
+        GPUVERTEXFORMAT_16_16 = 25,
+        GPUVERTEXFORMAT_16_16_16_16 = 26,
+        GPUVERTEXFORMAT_16_16_FLOAT = 31,
+        GPUVERTEXFORMAT_16_16_16_16_FLOAT = 32,
+        GPUVERTEXFORMAT_32 = 33,
+        GPUVERTEXFORMAT_32_32 = 34,
+        GPUVERTEXFORMAT_32_32_32_32 = 35,
+        GPUVERTEXFORMAT_32_FLOAT = 36,
+        GPUVERTEXFORMAT_32_32_FLOAT = 37,
+        GPUVERTEXFORMAT_32_32_32_32_FLOAT = 38,
+        GPUVERTEXFORMAT_32_32_32_FLOAT = 57,
+    } VertexFormat : 6;
+    enum GPUENDIAN {
+        GPUENDIAN_NONE = 0,
+        GPUENDIAN_8IN16 = 1,
+        GPUENDIAN_8IN32 = 2,
+        GPUENDIAN_16IN32 = 3
+    } Endian : 2;
+    enum GPUSIGN {
+        GPUSIGN_UNSIGNED = 0,
+        GPUSIGN_SIGNED = 1,
+        GPUSIGN_BIAS = 2,
+        GPUSIGN_GAMMA = 3
+    } VertexSign : 1;
+    enum GPUNUMFORMAT {
+        GPUNUMFORMAT_FRACTION = 0,
+        GPUNUMFORMAT_INTEGER = 1
+    } NumFormat : 1;
+    enum GPUSWIZZLE {
+        GPUSWIZZLE_X = 0,
+        GPUSWIZZLE_Y = 1,
+        GPUSWIZZLE_Z = 2,
+        GPUSWIZZLE_W = 3,
+        GPUSWIZZLE_0 = 4,
+        GPUSWIZZLE_1 = 5,
+        GPUSWIZZLE_KEEP = 7
+    } SwizzleX : 3;
+    GPUSWIZZLE SwizzleY : 3;
+    GPUSWIZZLE SwizzleZ : 3;
+    GPUSWIZZLE SwizzleW : 3;
+    uint32 __padding__ : 10;
+} D3DDECLTYPE;
+
+typedef struct { // D3D::CVertexDeclaration
+    D3DResource base;
+    uint32 m_Count;
+    uint32 m_MaxStream;
+    uint8 m_StreamMask[16];
+    uint32 m_Uniqueness;
+    struct D3DVERTEXELEMENT9 {
+        uint16 Stream;
+        uint16 Offset;
+        D3DDECLTYPE Type;
+        uint8 Method;
+        enum <uint8> D3DDECLUSAGE{
+            D3DDECLUSAGE_POSITION = 0,
+            D3DDECLUSAGE_BLENDWEIGHT = 1,
+            D3DDECLUSAGE_BLENDINDICES = 2,
+            D3DDECLUSAGE_NORMAL = 3,
+            D3DDECLUSAGE_PSIZE = 4,
+            D3DDECLUSAGE_TEXCOORD = 5,
+            D3DDECLUSAGE_TANGENT = 6,
+            D3DDECLUSAGE_BINORMAL = 7,
+            D3DDECLUSAGE_TESSFACTOR = 8,
+            D3DDECLUSAGE_COLOR = 10,
+            D3DDECLUSAGE_FOG = 11,
+            D3DDECLUSAGE_DEPTH = 12,
+            D3DDECLUSAGE_SAMPLE = 13
+        } Usage;
+        uint8 UsageIndex;
+        uint8 gapB;
+    } m_Element[m_Count];
+} D3D_CVertexDeclaration;
+
+uint32 m_type; // unsigned long; Type; 0x101; "m_type==e_fxlite"
+uint32 Hash; // unsigned long
+uint32 m_size; // unsigned long; ShaderSize
+uint32 m_techniqueCount; // unsigned long; Techniques
+uint32 m_vdeclCount; // unsigned long; Vdecls
+uint32 m_strideCount; // unsigned long; StrideCount
+
+uint32 size_bytes;
+//local uint32 size1_bytes = 4 * (m_techniqueCount + 2 * m_vdeclCount + m_strideCount);
+struct {
+    uint32 tecniques_vdecls_indexes[m_techniqueCount];
+    uint32 vdecls_sizes[m_vdeclCount];
+    uint32 vdecls_strides_lengths[m_vdeclCount];
+
+    local int32 i = 0;
+    struct {
+        uint32 strides[vdecls_strides_lengths[i]];
+        i++;
+    } vdecls_strides[m_vdeclCount] <optimize=false>;
+    // i == m_strideCount
+} m_data1;
+uint8 m_data2[m_size]; // shader data
+struct {
+    local int32 i = 0;
+    struct {
+        union {
+            D3D_CVertexDeclaration s;
+            uint8 data[m_data1.vdecls_sizes[i]];
+        } u;
+        i++;
+    } vdecls[m_vdeclCount] <optimize=false>;
+
+    i = 0;
+    struct {
+        struct {
+            char data[];
+        } elements_names[vdecls[i].u.s.m_Count] <read=data, optimize=false>;
+        i++;
+    } vdecls_elements_names[m_vdeclCount] <optimize=false>;
+} m_data3; // size: size_bytes - size1_bytes - m_size
