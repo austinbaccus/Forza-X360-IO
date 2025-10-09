@@ -28,8 +28,7 @@ class FORZA_OT_generate_textures(Operator):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
             path_textures: Path = list(path_bin.glob("*.bix"))
-            _populate_indexed_textures_from_track(path_textures, True)
-            # do something with indexed_textures, because it does not persist (I think)
+            _populate_indexed_textures_from_track(path_textures, save_files=True)
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -128,8 +127,12 @@ def _add_mesh_to_scene(context, forza_mesh, path_bin: Path):
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 
     if context.scene.generate_mats:
-        raise RuntimeError("Generating materials is not implemented yet.")
-        mat = generate_material_from_textures(forza_mesh.name, forza_mesh.textures, path_bin)
+        #raise RuntimeError("Generating materials is not implemented yet.")
+        if context.scene.use_pregenerated_textures:
+            mat = generate_material_from_texture_indices(forza_mesh.name, forza_mesh.textures, context.scene.forza_last_texture_folder)
+        else:
+            raise RuntimeError("Importing materials without pre-generated textures is not implemented yet.")
+            mat = generate_material_from_textures(forza_mesh.name, forza_mesh.textures, path_bin)
         if obj.data.materials: obj.data.materials[0] = mat
         else: obj.data.materials.append(mat)
     

@@ -39,7 +39,6 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context) -> list[ForzaMe
             for texture_idx in pvs_model.textures:
                 pvs_texture_filenames.append(pvs.textures[texture_idx]) # this may be in decimal or hex, not sure yet
 
-
             path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
             pvs_model_meshes = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_model_instance.transform, pvs_texture_filenames)
             instance_meshes.extend(pvs_model_meshes)
