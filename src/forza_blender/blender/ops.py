@@ -6,6 +6,7 @@ from bpy.props import StringProperty # type: ignore
 from forza_blender.forza.models.model_util import generate_meshes_from_pvs
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blendermesh
+from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_object
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
 
@@ -135,41 +136,13 @@ def _add_mesh_to_scene(context, forza_mesh, path_bin: Path):
         if obj.data.materials: obj.data.materials[0] = mat
         else: obj.data.materials.append(mat)
     
-    # convert mesh to Blender coordinate system
+    # convert mesh to blender coordinate system
     m = Matrix(forza_mesh.transform)
     m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
     obj.matrix_world = m
 
-    # --- UVs ---
-    mesh = obj.data
-    # Create or fetch a UV layer
-    uv_layer = mesh.uv_layers.get("UVMap") or mesh.uv_layers.new(name="UVMap")
-    mesh.uv_layers.active = uv_layer
-
-    # Many DirectX pipelines (Forza likely included) treat (0,0) at the TOP-left,
-    # while Blender uses BOTTOM-left. Flip V if your textures look upside-down.
-    FLIP_V = False
-
-    # Prebuild a vertex->uv lookup (Vector2)
-    # texture0 is expected to already be normalized [0,1] (you’re using _ushort_n)
-    vert_uv = []
-    for v in forza_mesh.vertices:
-        u, v0 = float(v.texture0.x), float(v.texture0.y)
-        if FLIP_V:
-            v0 = 1.0 - v0
-        vert_uv.append((u, v0))
-
-    # Assign per-loop: loop.vertex_index tells which vertex this corner uses
-    # No mode switch needed as we’re writing datablock arrays.
-    for li, loop in enumerate(mesh.loops):
-        vi = loop.vertex_index
-        # Safety check in case of vertex reindexing or deduplication
-        if 0 <= vi < len(vert_uv):
-            uv_layer.data[li].uv = vert_uv[vi]
-        else:
-            # Fallback: write 0,0 if something’s off
-            uv_layer.data[li].uv = (0.0, 0.0)
-
-    mesh.update()
+    # uv
+    generate_and_assign_uv_layers_to_object(obj, forza_mesh)
 
     bpy.context.collection.objects.link(obj)
+
