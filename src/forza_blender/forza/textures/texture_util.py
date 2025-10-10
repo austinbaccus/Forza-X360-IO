@@ -35,6 +35,7 @@ def generate_material_from_textures(mat_name, textures: PVSTexture, path_bin: Pa
 
         # link
         links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
     return mat
@@ -60,6 +61,7 @@ def generate_material_from_texture_indices(mat_name, textures: list[PVSTexture],
 
         # link
         links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
     return mat
