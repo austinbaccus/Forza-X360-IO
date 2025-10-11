@@ -154,8 +154,8 @@ typedef struct { // sub_837FA578
     } OrderedSubModels;
     struct { // sub_835C14E0
         int32 Version;
-        uint32 sub_models_length; // unsigned long count;
-        CTrackSubModel sub_models[sub_models_length] <optimize=false>;
+        uint32 track_sections_length; // unsigned long count;
+        CTrackSubModel track_sections[track_sections_length] <optimize=false>;
     } SubModel_Container;
     struct { // sub_83808198
         int32 Version; // 1: FM3

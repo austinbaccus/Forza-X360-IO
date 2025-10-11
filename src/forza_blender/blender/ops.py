@@ -9,6 +9,7 @@ from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blenderme
 from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_object
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
+from forza_blender.forza.shaders.shaders import *
 
 indexed_textures = {}
 
@@ -92,6 +93,8 @@ def _import_fm3(context, track_path: Path):
     path_shaders: Path = path_bin / "shaders"
     path_textures: Path = list(path_bin.glob("*.bix"))
     path_ribbon: Path = track_path / "Ribbon_00"
+    if not path_ribbon.exists():
+        path_ribbon: Path = track_path / "Ribbon_01"
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
     
     # textures
@@ -129,12 +132,12 @@ def _add_mesh_to_scene(context, forza_mesh, path_bin: Path):
     # material
     if context.scene.generate_mats:
         if context.scene.use_pregenerated_textures:
-            mat = generate_material_from_texture_indices(forza_mesh.name, forza_mesh.textures, context.scene.forza_last_texture_folder)
+            mats = generate_blender_materials_for_mesh(forza_mesh, context.scene.forza_last_texture_folder)
         else:
             raise RuntimeError("Importing materials without pre-generated textures is not implemented yet.")
             mat = generate_material_from_textures(forza_mesh.name, forza_mesh.textures, path_bin)
-        if obj.data.materials: obj.data.materials[0] = mat
-        else: obj.data.materials.append(mat)
+        for mat in mats:
+            obj.data.materials.append(mat)
     
     # convert mesh to blender coordinate system
     m = Matrix(forza_mesh.transform)

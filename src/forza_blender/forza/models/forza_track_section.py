@@ -35,7 +35,7 @@ class ForzaTrackSection:
 
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
-        # subsections
+        # individual meshes
         sub_count = int.from_bytes(f.read(4), byteorder="big", signed=False)
         self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
 

@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import re
 import bpy # type: ignore
+from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.pvs.read_pvs import PVSTexture
 from forza_blender.forza.textures.read_bix import Bix
 
@@ -43,7 +44,7 @@ def generate_material_from_textures(mat_name, textures: PVSTexture, path_bin: Pa
 def generate_material_from_texture_indices(mat_name, textures: list[PVSTexture], path_bin: Path):
     images = []
     for texture in textures:
-        texture_img = _get_image_from_index(path_bin, texture.texture_file_name)
+        texture_img = get_image_from_index(path_bin, texture.texture_file_name)
         images.append(texture_img)
 
     # create material
@@ -64,9 +65,15 @@ def generate_material_from_texture_indices(mat_name, textures: list[PVSTexture],
         links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
+    x = -600
+    y = -300
+    for img in images[1:]:
+        tex_extra = nodes.new("ShaderNodeTexImage"); tex_extra.image = img; tex_extra.location = (x, y)
+        y = y - 300
+
     return mat
 
-def _get_image_from_index(root: Path, image_index: str, filetype: str = "dds") -> bpy.types.Image:
+def get_image_from_index(root: Path, image_index: str, filetype: str = "dds") -> bpy.types.Image:
     # all texture filenames are integers written in hexadecimal. this also doubles as an index.
     # shaders and models reference textures by this index (in decimal format).
     # this method looks for the image file with a matching hexadecimal string filename as the `index` parameter and returns it as an image.
@@ -77,7 +84,7 @@ def _get_image_from_index(root: Path, image_index: str, filetype: str = "dds") -
     full_texture_path_str = str(full_texture_path.resolve())
     if not os.path.exists(full_texture_path_str):
         #raise FileNotFoundError(f"Image not found: {full_texture_path_str}")
-        print (f"Image not found: {full_texture_path_str}")
+        print (f"Image not found: {full_texture_path.stem}")
         return None
     img = bpy.data.images.load(full_texture_path_str, check_existing=True)
     return img

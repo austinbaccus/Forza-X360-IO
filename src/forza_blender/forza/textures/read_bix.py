@@ -67,7 +67,8 @@ class Bix():
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
             dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
         else:
-            raise ValueError("Unsupported deswizzling format!")
+            return None
+            #raise ValueError("Unsupported deswizzling format!")
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"
