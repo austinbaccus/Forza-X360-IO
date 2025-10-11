@@ -360,9 +360,9 @@ typedef struct {
     }
 
     if (header.version < PVS_UNKNOWN_VERSION_25) {
-	    uint32 unk2_length;
-        if (unk2_length > 0) {
-	     uint32 unk2[unk2_length];
+	    uint32 shaders_indexes_length;
+        if (shaders_indexes_length > 0) {
+	     uint32 shaders_indexes[shaders_indexes_length];
         }
     } else {
         Boolean unk1; // bool
