@@ -16,6 +16,8 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, forza_last_textur
             materials.append(_ROAD_BLND_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         elif "road_diff_spec_ovly_blur_detailscale_2" == shader_filename_simple:
             materials.append(_ROAD_DIFF_SPEC_OVLY_BLUR_DETAILSCALE_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+        elif "ocean_anim_norm_refl_5" == shader_filename_simple:
+            materials.append(_OCEAN_ANIM_NORM_REFL_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         else:
             materials.append(_UNKNOWN_SHADER(forza_mesh, forza_last_texture_folder, shader_filename_simple))
     return materials
@@ -124,6 +126,44 @@ def _DIFF_SPEC_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: s
 
 def _DIFF_SPEC_OPAC_REFL_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
     return _UNKNOWN_SHADER(forza_mesh, path_last_texture_folder, shader_name)
+
+def _OCEAN_ANIM_NORM_REFL_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
+    images = []
+    for texture in forza_mesh.textures:
+        texture_img = get_image_from_index(path_last_texture_folder, texture.texture_file_name)
+        images.append(texture_img)
+
+    # create material
+    mat = bpy.data.materials.new(shader_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
+
+    # nodes
+    if len(images) > 0:
+        nodes.clear()
+        sea_texture_path = r"X:\3d\games\forza\games\fm3\fm3_d1\fm3\Media\Tracks\_decompressed\AmalfiGP\bin\textures\sea.png"
+        bpy.data.images.load(sea_texture_path, check_existing=True)
+        tex = nodes.new("ShaderNodeTexImage"); tex.image = bpy.data.images.load(sea_texture_path, check_existing=True); tex.location = (-600, 0)
+        normal = nodes.new("ShaderNodeTexImage"); normal.image = images[1]; normal.location = (-600, 0)
+        normal_map = nodes.new(type='ShaderNodeNormalMap')
+
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0)
+        out = nodes.new("ShaderNodeOutputMaterial"); out.location = (200, 0)
+
+        # link
+        links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        links.new(normal.outputs["Color"], normal_map.inputs[0])
+        links.new(normal_map.outputs[0], bsdf.inputs["Normal"])
+        links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+
+    x = -600
+    y = -300
+    for img in images[1:]:
+        tex_extra = nodes.new("ShaderNodeTexImage"); tex_extra.image = img; tex_extra.location = (x, y)
+        y = y - 300
+
+    return mat
 
 def _ROAD_BLND_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
     return _UNKNOWN_SHADER(forza_mesh, path_last_texture_folder, shader_name)
