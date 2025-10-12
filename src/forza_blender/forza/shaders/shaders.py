@@ -260,7 +260,7 @@ def _road_3clr_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_na
     tiremarks_node = image_nodes[1]; tiremarks_node.image.alpha_mode = 'NONE'
     shadow_node = image_nodes[2]; shadow_node.image.alpha_mode = 'NONE'
     
-    mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-600, 0); mix_rgb_node.inputs['Fac'].default_value = 1.0; mix_rgb_node.blend_type = 'OVERLAY'
+    mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-600, 0); mix_rgb_node.inputs['Fac'].default_value = 0.8; mix_rgb_node.blend_type = 'OVERLAY'
     mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (-300, 150); mix_darken_node.blend_type = 'DARKEN'
 
     bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (0, 0); bsdf.inputs.get("IOR").default_value = 1.02
@@ -293,7 +293,7 @@ def _road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_tex
 
         diffuse1_node = nodes.new("ShaderNodeTexImage"); diffuse1_node.image = images[0]; diffuse1_node.location = (-600, 0); diffuse1_node.image.alpha_mode = 'NONE'
         diffuse2_node = nodes.new("ShaderNodeTexImage"); diffuse2_node.image = images[1]; diffuse2_node.location = (-600, -300); diffuse2_node.image.alpha_mode = 'NONE'
-        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-300, 150); mix_rgb_node.inputs['Fac'].default_value = 1.0; mix_rgb_node.blend_type = 'OVERLAY'
+        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-300, 150); mix_rgb_node.inputs['Fac'].default_value = .8; mix_rgb_node.blend_type = 'OVERLAY'
         map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (4.0, 4.0, 1.0); map_node.location = (-900, -300)
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-1200, -300)
 
