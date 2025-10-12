@@ -19,7 +19,7 @@ class FORZA_OT_track_import(Operator):
     
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
-            _import_fm3(context, context.scene.forza_last_track_folder)
+            _import_fm3(context, context.scene.forza_last_track_folder, context.scene.forza_last_ribbon_folder)
         return {'FINISHED'}
     
 class FORZA_OT_generate_textures(Operator):
@@ -54,6 +54,27 @@ class FORZA_OT_pick_track_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
     
+class FORZA_OT_pick_ribbon_folder(Operator):
+    """Choose a folder and return its path"""
+    bl_idname = "forza.pick_ribbon_folder"
+    bl_label = "Pick Ribbon Folder"
+    bl_description = "Open a file browser to select a folder"
+    directory: StringProperty(name="Folder", description="Folder to process", subtype='DIR_PATH') # type: ignore
+
+    def execute(self, context):
+        dir_path = Path(bpy.path.abspath(self.directory)).resolve()
+
+        if not dir_path.exists() or not dir_path.is_dir():
+            self.report({'ERROR'}, "Please pick a valid folder")
+            return {'CANCELLED'}
+
+        context.scene.forza_last_ribbon_folder = str(dir_path)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
 class FORZA_OT_pick_texture_folder(Operator):
     """Choose a folder and return its path"""
     bl_idname = "forza.pick_texture_folder"
@@ -75,7 +96,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures)
+classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures)
 
 
 def register():
@@ -84,15 +105,16 @@ def register():
 def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
-def _import_fm3(context, track_path: Path):
+def _import_fm3(context, track_path: Path, path_ribbon: Path):
     if type(track_path) is not Path:
         track_path = Path(track_path)
+    if type(path_ribbon) is not Path:
+        path_ribbon = Path(path_ribbon)
 
     # get paths to important folders and files
     path_bin: Path = track_path / "bin"
     path_shaders: Path = path_bin / "shaders"
     path_textures: Path = list(path_bin.glob("*.bix"))
-    path_ribbon: Path = track_path / "Ribbon_00"
     if not path_ribbon.exists():
         path_ribbon: Path = track_path / "Ribbon_01"
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]

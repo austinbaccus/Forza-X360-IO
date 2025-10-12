@@ -7,6 +7,11 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, forza_last_textur
     materials = []
     for shader_filename in forza_mesh.shader_filenames:
         shader_filename_simple = (shader_filename.split('\\')[-1]).split('.')[0]
+
+        # for debugging only!
+        #if "terr_blnd_spec_norm_5" == shader_filename_simple:
+        #    materials.append(_terr_blnd_spec_norm_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+
         if "diff_spec_1" == shader_filename_simple:
             materials.append(_diff_spec_1(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         elif "diff_opac_2" == shader_filename_simple:
@@ -29,6 +34,10 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, forza_last_textur
             materials.append(_tree_diff_opac_2_2sd(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         elif "diff_opac_clampv_2" == shader_filename_simple:
             materials.append(_diff_opac_clampv_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+        elif "terr_blnd_spec_norm_5" == shader_filename_simple:
+            materials.append(_terr_blnd_spec_norm_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+        elif "road_3clr_blnd_2" == shader_filename_simple:
+            materials.append(_road_3clr_blnd_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         else:
             materials.append(_unknown(forza_mesh, forza_last_texture_folder, shader_filename_simple))
     return materials
@@ -74,7 +83,7 @@ def _diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: s
     if len(images) > 0:
         nodes.clear()
         tex = nodes.new("ShaderNodeTexImage"); tex.image = images[0]; tex.location = (-600, 0)
-        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0)
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0); bsdf.inputs.get("IOR").default_value = 1.02
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (200, 0)
 
         # link
@@ -229,6 +238,46 @@ def _ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, sha
 def _road_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
     return _road_diff_spec_ovly_blur_detailscale_2(forza_mesh, path_last_texture_folder, shader_name)
 
+def _road_3clr_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
+    images = get_images_from_mesh(forza_mesh, path_last_texture_folder)
+
+    # create material
+    mat = bpy.data.materials.new(shader_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
+
+     # image nodes
+    x = 4 * -300
+    y = 600
+    image_nodes = []
+    for img in images:
+        image_texture_node = mat.node_tree.nodes.new("ShaderNodeTexImage"); image_texture_node.image = img; image_texture_node.location = (x, y)
+        image_nodes.append(image_texture_node)
+        y = y - 300
+    
+    asphalt_node = image_nodes[0]; asphalt_node.image.alpha_mode = 'NONE'
+    tiremarks_node = image_nodes[1]; tiremarks_node.image.alpha_mode = 'NONE'
+    shadow_node = image_nodes[2]; shadow_node.image.alpha_mode = 'NONE'
+    
+    mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-600, 0); mix_rgb_node.inputs['Fac'].default_value = 1.0; mix_rgb_node.blend_type = 'OVERLAY'
+    mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (-300, 150); mix_darken_node.blend_type = 'DARKEN'
+
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (0, 0); bsdf.inputs.get("IOR").default_value = 1.02
+    out = nodes.new("ShaderNodeOutputMaterial"); out.location = (300, 0)
+
+    # links
+    links.new(asphalt_node.outputs[0], mix_rgb_node.inputs[1])
+    links.new(tiremarks_node.outputs[0], mix_rgb_node.inputs[2])
+    links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+    links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
+
+    links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+    links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+
+    add_extra_images_to_material(mat, images, 3, False)
+    return mat
+
 def _road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
     images = get_images_from_mesh(forza_mesh, path_last_texture_folder)
 
@@ -244,9 +293,9 @@ def _road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_tex
 
         diffuse1_node = nodes.new("ShaderNodeTexImage"); diffuse1_node.image = images[0]; diffuse1_node.location = (-600, 0); diffuse1_node.image.alpha_mode = 'NONE'
         diffuse2_node = nodes.new("ShaderNodeTexImage"); diffuse2_node.image = images[1]; diffuse2_node.location = (-600, -300); diffuse2_node.image.alpha_mode = 'NONE'
-        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-300, 150)
-        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (4.0, 16.0, 1.0); map_node.location = (-900, -300)
-        tex_coord_node = nodes.new(type='ShaderNodeTexCoord')
+        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (-300, 150); mix_rgb_node.inputs['Fac'].default_value = 1.0; mix_rgb_node.blend_type = 'OVERLAY'
+        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (4.0, 4.0, 1.0); map_node.location = (-900, -300)
+        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-1200, -300)
 
         bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (0, 0); bsdf.inputs.get("IOR").default_value = 1.02
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (300, 0)
@@ -259,10 +308,7 @@ def _road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_tex
         links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 2, False)
-
     return mat
 
 # vegetation
@@ -321,5 +367,78 @@ def _diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_
     
     # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
+
+    return mat
+
+def _terr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
+    images = get_images_from_mesh(forza_mesh, path_last_texture_folder)
+
+    # create material
+    mat = bpy.data.materials.new(shader_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
+
+    if len(images) > 0:
+        nodes.clear()
+
+        # texture coords node
+        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-1800, 200)
+        # mapping node
+        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (2.5, 2.5, 1.0); map_node.location = (-1500, 0)
+        map_grass_node = nodes.new('ShaderNodeMapping'); map_grass_node.inputs['Scale'].default_value = (5.0, 5.0, 1.0); map_grass_node.location = (-1500, 400)
+        
+
+        # image nodes
+        x = 4 * -300
+        y = 600
+        image_nodes = []
+        for img in images:
+            image_texture_node = mat.node_tree.nodes.new("ShaderNodeTexImage"); image_texture_node.image = img; image_texture_node.location = (x, y)
+            image_nodes.append(image_texture_node)
+            y = y - 300
+        
+        grass_node = image_nodes[0]; grass_node.image.alpha_mode = 'NONE'
+        rock1_node = image_nodes[1]; rock1_node.image.alpha_mode = 'NONE'
+        mask_node = image_nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
+        if len(images) > 3:
+            rock0_node = image_nodes[3]
+        if len(images) > 4:
+            amb_occlusion_node = image_nodes[4]
+        if len(images) > 5:
+            normal_node = image_nodes[5]; normal_node.image.alpha_mode = 'NONE' # idx out of range
+
+        # post-diffuse nodes
+        separate_colors_node = nodes.new('ShaderNodeSeparateColor'); separate_colors_node.location = (-900, 0)
+        normal_map_node = nodes.new(type='ShaderNodeNormalMap'); normal_map_node.location = (-900, -900)
+        mix_mask_node = nodes.new(type='ShaderNodeMixRGB'); mix_mask_node.location = (-600, 0); mix_mask_node.blend_type = 'MIX'
+        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (-300, 0); mix_darken_node.blend_type = 'DARKEN'
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (0, 0); bsdf.inputs.get("IOR").default_value = 1.02
+        out = nodes.new("ShaderNodeOutputMaterial"); out.location = (300, 0)
+
+        # link nodes together
+        links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
+        links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
+        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
+        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
+
+        if len(images) > 5:
+            links.new(map_node.outputs[0], normal_node.inputs["Vector"])
+            links.new(normal_node.outputs[0], normal_map_node.inputs["Color"])
+            links.new(normal_map_node.outputs[0], bsdf.inputs["Normal"])
+
+        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
+        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
+
+        links.new(mask_node.outputs[0], separate_colors_node.inputs[0])
+        links.new(separate_colors_node.outputs[1], mix_mask_node.inputs[0])
+
+        links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
+        if len(images) > 4:
+            links.new(amb_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+
+        add_extra_images_to_material(mat, images, 6, False)
 
     return mat

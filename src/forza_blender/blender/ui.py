@@ -65,19 +65,33 @@ def _draw_track_import_box(context, layout):
     box_models_row_1 = box_models.row(align=True)
     box_models_row_1.operator("forza.pick_track_folder", icon="FILE_FOLDER")
     folder_track_path = context.scene.forza_last_track_folder
+    # track
     if folder_track_path:
         box_models_row_2 = box_models.row()
         box_models_row_2.prop(context.scene, "forza_last_track_folder", text="", emboss=False, icon='FILE_FOLDER')
     else:
         box_models.label(text="No track folder selected", icon='INFO')
+
+    # ribbon
     box_models_row_2 = box_models.row(align=True)
-    box_models_row_2.operator("forza.generate_textures", icon="CUBE")
+    box_models_row_2.operator("forza.pick_ribbon_folder", icon="FILE_FOLDER")
+    
+    folder_ribbon_path = context.scene.forza_last_ribbon_folder
+    if folder_ribbon_path:
+        box_models_row_2 = box_models.row()
+        box_models_row_2.prop(context.scene, "forza_last_ribbon_folder", text="", emboss=False, icon='FILE_FOLDER')
+    else:
+        box_models.label(text="No ribbon folder selected", icon='INFO')
+
+    # generate textures
+    box_models_row_3 = box_models.row(align=True)
+    box_models_row_3.operator("forza.generate_textures", icon="CUBE")
 
     is_track_folder_null_or_empty = context.scene.forza_last_track_folder is None or context.scene.forza_last_track_folder == ''
     if is_track_folder_null_or_empty:
-        box_models_row_2.enabled = False
+        box_models_row_3.enabled = False
     else:
-        box_models_row_2.enabled = True
+        box_models_row_3.enabled = True
 
 def _draw_import_button(context, layout, enabled: bool):
     layout.separator()

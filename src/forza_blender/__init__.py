@@ -49,6 +49,12 @@ def register():
         default=""
     )
 
+    bpy.types.Scene.forza_last_ribbon_folder = StringProperty(
+        name="Selected Ribbon Folder",
+        subtype='DIR_PATH',
+        default=""
+    )
+
     bpy.types.Scene.forza_last_texture_folder = StringProperty(
         name="Selected Texture Folder",
         subtype='DIR_PATH',
@@ -64,6 +70,8 @@ def unregister():
     ops.unregister()
     if hasattr(bpy.types.Scene, "forza_last_track_folder"):
         del bpy.types.Scene.forza_last_track_folder
+    if hasattr(bpy.types.Scene, "forza_last_ribbon_folder"):
+        del bpy.types.Scene.forza_last_ribbon_folder
     if hasattr(bpy.types.Scene, "forza_last_texture_folder"):
         del bpy.types.Scene.forza_last_texture_folder
     if hasattr(bpy.types.Scene, "forza_selection"):
