@@ -1,2 +1,2 @@
-# forza-studio
-Open source version of Forza Studio, compatible with Blender.
+# Forza Studio for Blender
+Open source version of Forza Studio, converted to run in Blender.
