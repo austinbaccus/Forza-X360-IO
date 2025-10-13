@@ -51,8 +51,8 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, texture
     for track_section in track_bin.track_sections:
         # track_section_num track_section_name track_subsection_name
         meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_section.subsections[0].name
-        vertices, indices = track_section.generate_vertices()
-        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, indices, vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
+        vertices, faces = track_section.generate_vertices()
+        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
         rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes

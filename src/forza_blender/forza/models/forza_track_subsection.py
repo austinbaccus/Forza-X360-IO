@@ -1,7 +1,5 @@
 import struct
-from mathutils import Vector # type: ignore
 from .index_type import IndexType
-from ..utils.mesh_util import calculate_face_count, read_indices
 
 class ForzaTrackSubSection:
     def __init__(self, f):
@@ -32,8 +30,8 @@ class ForzaTrackSubSection:
         assert(1.0 == struct.unpack(">f", f.read(4))[0])
 
         # uv
-        self.uv_offset = Vector((struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]))
-        self.uv_tile = Vector((struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]))
+        self.uv_offset = [struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]]
+        self.uv_tile = [struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]]
 
         # assert
         assert(3 == int.from_bytes(f.read(4), byteorder="big", signed=False))
@@ -41,11 +39,9 @@ class ForzaTrackSubSection:
         # indices
         indicies_count = int.from_bytes(f.read(4), byteorder="big", signed=True) # 2
         indices_size = int.from_bytes(f.read(4), byteorder="big", signed=True) # 1
-        self.indices = read_indices(f, indicies_count, indices_size)
+        self.index_is_32bit = indices_size == 4
+        self.indices = f.read(indices_size * indicies_count)
 
         num = struct.unpack(">i", f.read(4))[0]
         if num != 0 and num != 1 and num != 2 and num != 5:
             raise RuntimeError("analyze this!")
-        
-        # counts
-        self.face_count = calculate_face_count(self.indices, self.index_type)

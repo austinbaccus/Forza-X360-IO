@@ -29,7 +29,7 @@ class RmbBin:
             # read SubModel_Container section
             track_sections_count: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
             for i in range(track_sections_count):
-                self.track_sections.append(ForzaTrackSection(f, self.forza_version))
+                self.track_sections.append(ForzaTrackSection(f))
 
             # read MaterialSets_Container section
             f.read(4) # version
