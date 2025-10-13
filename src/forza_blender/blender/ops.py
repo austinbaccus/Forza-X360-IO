@@ -1,9 +1,12 @@
 import bpy # type: ignore
 from pathlib import Path
+from forza_blender.forza.pvs.pvs_util import BinaryStream
+from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.shaders.read_shader import FXLShader
 from mathutils import Matrix # type: ignore
 from bpy.types import Operator # type: ignore
 from bpy.props import StringProperty # type: ignore
-from forza_blender.forza.models.model_util import generate_meshes_from_pvs
+from forza_blender.forza.models.model_util import generate_meshes_from_pvs, generate_meshes_from_pvs_model_instance, get_rmbbin_files, get_shaders
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blendermesh
 from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_object
@@ -29,12 +32,16 @@ class FORZA_OT_track_import_modal(Operator):
 
     def _step(self, context):
         """Do a small chunk of work and return True if more remains."""
-        # Example: process 1 item per call
-        if self.idx < len(self.items):
-            item = self.items[self.idx]
-            # ... do work for `item` here ...
+        if self.idx < len(self.pvs.models_instances):
+            item = self.pvs.models_instances[self.idx]
+            instance_meshes = generate_meshes_from_pvs_model_instance(item, self.pvs, self.rmbbin_files, self.shaders, context)
+            if instance_meshes is not None:
+                for instance_mesh in instance_meshes:
+                    if instance_mesh is not None:
+                        _add_mesh_to_scene(context, instance_mesh, self.path_bin)
+
             # update status/progress
-            context.workspace.status_text_set(f"Processing {self.idx+1}/{len(self.items)}: {item}")
+            context.workspace.status_text_set(f"Processing {self.idx+1}/{len(self.pvs.models_instances)}: {item}")
             bpy.context.window_manager.progress_update(self.idx + 1)
             self.idx += 1
             return True
@@ -42,7 +49,7 @@ class FORZA_OT_track_import_modal(Operator):
 
     def modal(self, context, event):
         if event.type == 'TIMER':
-            steps_this_tick = 5
+            steps_this_tick = 50
             for _ in range(steps_this_tick):
                 if not self._step(context):
                     self._finish(context, ok=True)
@@ -66,22 +73,25 @@ class FORZA_OT_track_import_modal(Operator):
             self.report({'WARNING'}, "Import cancelled")
 
     def invoke(self, context, event):
+        track_path = context.scene.forza_last_track_folder
+        path_ribbon = context.scene.forza_last_ribbon_folder
         if type(track_path) is not Path: track_path = Path(track_path)
         if type(path_ribbon) is not Path: path_ribbon = Path(path_ribbon)
-        path_bin: Path = track_path / "bin"
+        self.path_bin: Path = track_path / "bin"
         path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
 
-        # Prepare your workload
-        meshes: list[ForzaMesh] = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
-        for instance_mesh in meshes:
-             _add_mesh_to_scene(context, instance_mesh, path_bin)
+        # prepare workload
+        self.rmbbin_files = get_rmbbin_files(self.path_bin)
+        self.pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+        self.shaders: dict[str, FXLShader] = get_shaders(self.path_bin, self.pvs)
+        
+        #for instance_mesh in generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
+        #    _add_mesh_to_scene(context, instance_mesh, path_bin)
 
-
-        self.items = [f"item_{i}" for i in range(1000)]
         self.idx = 0
 
         # Progress bar
-        bpy.context.window_manager.progress_begin(0, len(self.items))
+        bpy.context.window_manager.progress_begin(0, len(self.pvs.models_instances))
 
         # Timer to drive modal steps
         wm = context.window_manager
