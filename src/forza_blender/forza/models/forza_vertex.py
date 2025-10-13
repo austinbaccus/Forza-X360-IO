@@ -1,70 +1,59 @@
-import struct
+import numpy as np
+from forza_blender.forza.shaders.read_shader import VertexElement
 from mathutils import Vector # type: ignore
-from .forza_vertex_type import ForzaVertexType
-from ..utils.forza_version import ForzaVersion
 
 class ForzaVertex:
-    def __init__(self, f, size: int, vertex_type: ForzaVertexType, forza_version: ForzaVersion):
-        self.position: Vector = Vector((0.0,0.0,0.0))
-        self.texture0: Vector = Vector((0.0,0.0))
-        self.texture1: Vector = Vector((0.0,0.0))
-        self.normal: Vector = Vector((0.0,0.0,0.0))
-        self.read_vertex(f, size, vertex_type, forza_version)
+    def __init__(self, position, texcoords):
+        self.position = position
+        self.texcoords = texcoords
+        self.normal = None
 
-    def read_vertex(self, f, size: int, vertex_type: ForzaVertexType, forza_version: ForzaVersion):
-        if vertex_type == ForzaVertexType.Car: 
-            self._read_car_vertex()
-        if vertex_type == ForzaVertexType.Track: 
-            self._read_track_vertex(f, size, forza_version)
-
-    def _read_track_vertex(self, f, size: int, forza_version: ForzaVersion):
-        if forza_version == ForzaVersion.FM3:
-            if size == 12:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-            elif size == 16:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-            elif size == 20:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            elif size == 24:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-            elif size == 28:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                f.read(8)
-            elif size == 32:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                f.read(8)
-            elif size == 36:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                f.read(4)
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                f.read(8)
-            elif size == 40:
-                self.position = Vector(struct.unpack(">3f", f.read(12)))
-                self.normal = self._get_normalized_101010(int.from_bytes(f.read(4), byteorder="big", signed=False))
-                self.texture0 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                self.texture1 = Vector((self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False)), self._ushort_n(int.from_bytes(f.read(2), byteorder="big", signed=False))))
-                f.read(16)
+    def from_buffer(buf: bytes, elements: list[VertexElement]):
+        has_position = False
+        has_texcoord = [False] * 3
+        dtype_columns = []
+        gap_index = 0
+        for element in elements:
+            if element.usage == 0: # POSITION0
+                if element.usage_index == 0:
+                    has_position = True
+                    name = "position"
+                else:
+                    raise RuntimeError()
+                if element.type == 2761657: # D3DDECLTYPE_FLOAT3
+                    format = ">3f4"
+                else:
+                    raise RuntimeError()
+            elif element.usage == 5:
+                if element.usage_index == 0: # TEXCOORD0
+                    has_texcoord[0] = True
+                    name = "texcoord0"
+                elif element.usage_index == 1: # TEXCOORD1
+                    has_texcoord[1] = True
+                    name = "texcoord1"
+                elif element.usage_index == 2: # TEXCOORD2
+                    has_texcoord[2] = True
+                    name = "texcoord2"
+                else:
+                    raise RuntimeError()
+                if element.type == 2891865: # D3DDECLTYPE_USHORT2N
+                    format = ">2u2"
+                else:
+                    raise RuntimeError()
             else:
-                raise RuntimeError("Vertex data is the wrong size.")
-        else:
-            raise RuntimeError(str(forza_version.name) + " is not supported for track vertices yet.")
+                if element.type == 1712519 or element.type == 1583238: # D3DDECLTYPE_DEC4N, D3DDECLTYPE_D3DCOLOR
+                    dtype_columns.append((F"gap{gap_index}", np.void, 4))
+                    gap_index += 1
+                else:
+                    raise RuntimeError()
+                continue
+            dtype_columns.append((name, format))
+        if not has_position:
+            raise RuntimeError()
+        vertex = np.frombuffer(buf, np.dtype(dtype_columns))
+        texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
+        return ForzaVertex(vertex["position"], texcoords)
 
-    def _read_car_vertex(self):
-        raise RuntimeError("Reading car vertices is not supported.")
-    
     def _get_normalized_101010(self, packed_value: int):
         # layout matches R10G10B10: bits [0..9]=X, [10..19]=Y, [20..29]=Z. Top 2 bits ignored.
         MASK10 = 0x3FF   # 10-bit mask (0b11_1111_1111)
@@ -97,6 +86,3 @@ class ForzaVertex:
             iz = iz / 511.0
 
         return Vector((ix,iy,iz))
-    
-    def _ushort_n(self, value: int) -> float:
-        return (float(value) / 65535.0)

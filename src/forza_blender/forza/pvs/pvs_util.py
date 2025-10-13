@@ -103,18 +103,18 @@ class BinaryStream:
         #     it.deserialize(self._stream)
         # return std_vector
 
-    def read_string(self): # IOSys::CBinaryStream::Serialize<std::string>
+    def read_string(self, encoding: str = "ascii"): # IOSys::CBinaryStream::Serialize<std::string>
         length = self.read_u32()
-        return self._stream.read(length).decode("utf-8")
+        return self._stream.read(length).decode(encoding)
 
-    def read_7bit_string(self):
+    def read_7bit_string(self, encoding: str = "ascii"):
         length = self.read_7bit()
-        return self._stream.read(length).decode("utf-8")
+        return self._stream.read(length).decode(encoding)
 
     # null-terminated string
-    def read_cstring(self, size):
+    def read_cstring(self, size, encoding: str = "ascii"):
         buf = self.read(size)
-        return buf.split(b"\x00", 1)[0].decode("ascii")
+        return buf.split(b"\x00", 1)[0].decode(encoding)
 
     def read_u8(self) -> int:
         return self._u8.read()

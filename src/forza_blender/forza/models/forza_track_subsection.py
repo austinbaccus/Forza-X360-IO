@@ -1,56 +1,60 @@
-import struct
-from typing import List
-from mathutils import Vector # type: ignore
+from forza_blender.forza.pvs.pvs_util import BinaryStream
 from .index_type import IndexType
-from .forza_vertex import ForzaVertex
-from ..utils.mesh_util import calculate_vertex_count, calculate_face_count, read_indices
+
+class IndexBuffer:
+    def __init__(self, length: int, stride: int, data: bytes):
+        self.is_32bit = stride == 4
+        self.length = length
+        self.stride = stride
+        self.data = data
+
+    def from_stream(stream: BinaryStream):
+        version = stream.read_u32()
+        if version >= 4:
+            stream.skip(4)
+        length = stream.read_u32()
+        stride = stream.read_u32()
+        data = stream.read(stride * length)
+        return IndexBuffer(length, stride, data)
 
 class ForzaTrackSubSection:
-    def __init__(self, f):
-        # vertices
-        self.vertices: List[ForzaVertex] = None
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+    def __init__(self, name: str, material_index: int, uv_offset: list[float], uv_scale: list[float], index_type: IndexType, index_buffer: IndexBuffer):
+        self.name = name
+        self.material_index = material_index
+        self.uv_offset = uv_offset
+        self.uv_scale = uv_scale
+        self.index_type = index_type
+        self.index_buffer = index_buffer
+
+    def from_stream(stream: BinaryStream):
+        assert(1 == stream.read_u32())
+        assert(2 == stream.read_u32())
         
         # name
-        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("latin_1")
+        name: str = stream.read_string("latin_1")
 
-        # lod
-        self.lod : int = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        stream.skip(4)
 
         # index type
-        self.index_type : IndexType = IndexType(int.from_bytes(f.read(4), byteorder="big", signed=False))
+        index_type: IndexType = IndexType(stream.read_u32())
 
         # skip and assert
-        f.read(4)
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
+        material_index = stream.read_u32()
+        assert(1 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
 
         # uv
-        self.uv_offset = Vector((struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]))
-        self.uv_tile = Vector((struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]))
+        uv_offset = [stream.read_f32() for _ in range(2)]
+        uv_scale = [stream.read_f32() for _ in range(2)]
 
-        # assert
-        assert(3 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        index_buffer = IndexBuffer.from_stream(stream)
 
-        # indices
-        indicies_count = int.from_bytes(f.read(4), byteorder="big", signed=True) # 2
-        indices_size = int.from_bytes(f.read(4), byteorder="big", signed=True) # 1
-        self.indices = read_indices(f, indicies_count, indices_size)
-
-        num = struct.unpack(">i", f.read(4))[0]
-        if num != 0 and num != 1 and num != 2 and num != 5:
-            raise RuntimeError("analyze this!")
-        
-        # counts
-        self.vertex_count = calculate_vertex_count(self.indices)
-        self.face_count = calculate_face_count(self.indices, self.index_type)
+        stream.skip(4)
+        return ForzaTrackSubSection(name, material_index, uv_offset, uv_scale, index_type, index_buffer)

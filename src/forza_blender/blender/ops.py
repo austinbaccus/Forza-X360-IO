@@ -182,8 +182,7 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     meshes: list[ForzaMesh] = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
     i = 0
     for instance_mesh in meshes:
-        if context.scene.generate_lods: _add_mesh_to_scene(context, instance_mesh, path_bin)
-        elif "LOD01" not in instance_mesh.name and "LOD02" not in instance_mesh.name: _add_mesh_to_scene(context, instance_mesh, path_bin) # TODO needs a more elegant solution  
+        _add_mesh_to_scene(context, instance_mesh, path_bin)
         i = i + 1
         print(f"[{i}/{len(meshes)}]")
         bpy.context.workspace.status_text_set(f"[{i}/{len(meshes)}] meshes imported")

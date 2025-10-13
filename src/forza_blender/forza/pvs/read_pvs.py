@@ -10,11 +10,13 @@ class PVSHeader:
             raise RuntimeError("Wrong magic number.")
         version = stream.read_u32()
         # the template supports much more versions, but you can implement only FM3 support and add more versions later if neccessary
-        if version > 24:
-            print(F"Warning: Unsupported PVS version. Found: {version}. Max supported: 24")
+        if version > 27:
+            print(F"Warning: Unsupported PVS version. Found: {version}. Max supported: 27")
         if version < 24:
             print(F"Warning: Unsupported PVS version. Found: {version}. Min supported: 24")
         stream.skip(4) # just skip fields if you don't need them
+        if version >= 27:
+            stream.skip(4)
         return PVSHeader(version)
 
 class PVSZone:
@@ -31,13 +33,18 @@ class PVSZone:
         stream.skip(textures_use_length)
 
 class PVSModelInstance:
-    def __init__(self, model_index: int, transform: list[list[float]]):
+    def __init__(self, model_index: int, flags: int, transform: list[list[float]]):
         self.model_index = model_index
+        self.flags = flags
         self.transform = transform
 
-    def from_stream(stream: BinaryStream):
+    def from_stream(stream: BinaryStream, version):
         model_index = stream.read_u16()
-        stream.skip(24)
+        flags = stream.read_u32()
+        if version >= 25:
+            stream.skip(32)
+        else:
+            stream.skip(20)
         
         translate_x: float = stream.read_f32()
         translate_y: float = stream.read_f32()
@@ -53,7 +60,7 @@ class PVSModelInstance:
             [r0[2], r1[2], r2[2], translate_z],
             [0, 0, 0, 1]
         ]
-        return PVSModelInstance(model_index, transform)
+        return PVSModelInstance(model_index, flags, transform)
 
 class PVSModel:
     def __init__(self, model_index, textures, shaders):
@@ -85,11 +92,12 @@ class PVSTexture:
         return PVSTexture(texture_file_name)
 
 class PVS:
-    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture]):
+    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str]):
         self.header = header
         self.models_instances = models_instances
         self.models = models
         self.textures = textures
+        self.shaders = shaders
 
     def from_stream(stream: BinaryStream):
         header = PVSHeader.from_stream(stream) # type: ignore
@@ -100,10 +108,9 @@ class PVS:
         textures_length = stream.read_u32()
         textures = [PVSTexture.from_stream(stream) for _ in range(textures_length)]
         shaders_length = stream.read_u32()
-        for _ in range(shaders_length):
-            stream.read_string() # a string with 32-bit size prefix
+        shaders = [stream.read_string() for _ in range(shaders_length)] # a string with 32-bit size prefix
         models_instances_length = stream.read_u32()
-        models_instances = [PVSModelInstance.from_stream(stream) for _ in range(models_instances_length)]
+        models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(models_instances_length)]
         models_length = stream.read_u32()
         models = [PVSModel.from_stream(stream,idx) for idx in range(models_length)]
-        return PVS(header, models_instances, models, textures)
+        return PVS(header, models_instances, models, textures, shaders)
