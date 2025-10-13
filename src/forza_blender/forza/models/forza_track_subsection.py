@@ -1,47 +1,42 @@
-import struct
+from forza_blender.forza.pvs.pvs_util import BinaryStream
 from .index_type import IndexType
 
 class ForzaTrackSubSection:
-    def __init__(self, f):
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+    def __init__(self, stream: BinaryStream):
+        assert(1 == stream.read_u32())
+        assert(2 == stream.read_u32())
         
         # name
-        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("latin_1")
+        self.name: str = stream.read_string("latin_1")
 
-        # lod
-        self.lod : int = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        stream.skip(4)
 
         # index type
-        self.index_type : IndexType = IndexType(int.from_bytes(f.read(4), byteorder="big", signed=False))
+        self.index_type: IndexType = IndexType(stream.read_u32())
 
         # skip and assert
-        f.read(4)
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(0 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1.0 == struct.unpack(">f", f.read(4))[0])
+        stream.skip(4)
+        assert(1 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(0 == stream.read_u32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
+        assert(1.0 == stream.read_f32())
 
         # uv
-        self.uv_offset = [struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]]
-        self.uv_tile = [struct.unpack(">f", f.read(4))[0],struct.unpack(">f", f.read(4))[0]]
+        self.uv_offset = [stream.read_f32() for _ in range(2)]
+        self.uv_tile = [stream.read_f32() for _ in range(2)]
 
         # assert
-        assert(3 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        assert(3 == stream.read_u32())
 
         # indices
-        indicies_count = int.from_bytes(f.read(4), byteorder="big", signed=True) # 2
-        indices_size = int.from_bytes(f.read(4), byteorder="big", signed=True) # 1
+        indicies_count = stream.read_s32() # 2
+        indices_size = stream.read_s32() # 1
         self.index_is_32bit = indices_size == 4
-        self.indices = f.read(indices_size * indicies_count)
+        self.indices = stream.read(indices_size * indicies_count)
 
-        num = struct.unpack(">i", f.read(4))[0]
-        if num != 0 and num != 1 and num != 2 and num != 5:
-            raise RuntimeError("analyze this!")
+        stream.skip(4)

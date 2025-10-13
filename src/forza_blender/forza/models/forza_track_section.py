@@ -1,42 +1,38 @@
-import struct
 from typing import List
 import numpy as np
+from forza_blender.forza.pvs.pvs_util import BinaryStream
 from ..utils.mesh_util import generate_triangle_list
 from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
 from .index_type import IndexType
 
 class ForzaTrackSection:
-    def __init__(self, f):
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0]  )
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+    def __init__(self, stream: BinaryStream):
+        assert(1 == stream.read_u32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        assert(1 == stream.read_u32())
 
         # name
-        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("latin_1")
+        self.name: str = stream.read_string("latin_1")
 
-        assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        assert(2 == stream.read_u32())
 
         # forza vertex array
-        num: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        self.size: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        self.base_vertices = f.read(self.size * num)
+        num: int = stream.read_u32()
+        self.size: int = stream.read_u32()
+        self.base_vertices = stream.read(self.size * num)
 
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        assert(1 == stream.read_u32())
 
         # individual meshes
-        sub_count = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
-
-        for j in range(sub_count):
-            self.subsections[j] = ForzaTrackSubSection(f)
+        sub_count = stream.read_u32()
+        self.subsections: List[ForzaTrackSubSection] = [ForzaTrackSubSection(stream) for _ in range(sub_count)]
+        
 
     def generate_vertices(self):
         vertices = ForzaVertex(self.base_vertices, self.size)

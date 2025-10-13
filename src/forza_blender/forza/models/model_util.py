@@ -46,8 +46,6 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, texture
     rmbbin_meshes = []
     track_bin.populate_objects_from_rmbbin()
 
-    if track_bin.forza_version.name != context.scene.forza_selection:
-        raise RuntimeError("Forza version mismatch!")
     for track_section in track_bin.track_sections:
         # track_section_num track_section_name track_subsection_name
         meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_section.subsections[0].name
