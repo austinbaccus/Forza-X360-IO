@@ -1,6 +1,6 @@
 import struct
 from typing import List
-from ..utils.mesh_util import generate_triangle_list, generate_triangle_list, generate_vertices
+from ..utils.mesh_util import generate_triangle_list
 from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
 from .forza_vertex_type import ForzaVertexType
@@ -29,9 +29,9 @@ class ForzaTrackSection:
         num: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
         size: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
-        base_vertices: List[ForzaVertex] = [None] * num
+        self.base_vertices: List[ForzaVertex] = [None] * num
         for i in range(num):
-            base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track, forza_version)
+            self.base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track, forza_version)
 
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
 
@@ -40,22 +40,27 @@ class ForzaTrackSection:
         self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
 
         for j in range(sub_count):
-            sub = ForzaTrackSubSection(f)
+            self.subsections[j] = ForzaTrackSubSection(f)
 
-            # generate per-subsection vertices
-            sub.vertices = generate_vertices(base_vertices, sub.indices)
+    def generate_vertices(self):
+        vertices = self.base_vertices
 
-            # uv adjustments
-            for v in sub.vertices:
-                v.texture0 *= sub.uv_tile
-                v.texture1 *= sub.uv_tile
-                v.texture0 += sub.uv_offset
-                v.texture1 += sub.uv_offset
-                v.texture0.y = 1.0 - v.texture0.y
-                v.texture1.y = 1.0 - v.texture1.y
+        # uv adjustments
+        sub = self.subsections[0] # assume that all submeshes have the same UV transform
+        for v in vertices:
+            v.texture0 *= sub.uv_tile
+            v.texture1 *= sub.uv_tile
+            v.texture0 += sub.uv_offset
+            v.texture1 += sub.uv_offset
+            v.texture0.y = 1.0 - v.texture0.y
+            v.texture1.y = 1.0 - v.texture1.y
 
+        indices = []
+        for sub in self.subsections:
             # convert tristrips to triangle list if needed
             if sub.index_type == IndexType.TriStrip:
-                sub.indices = generate_triangle_list(sub.indices, sub.face_count)
+                indices.extend(generate_triangle_list(sub.indices, sub.face_count))
+            else:
+                indices.extend(sub.indices)
 
-            self.subsections[j] = sub
+        return vertices, indices

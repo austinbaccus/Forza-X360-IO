@@ -1,7 +1,7 @@
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from ..models.index_type import IndexType
 from ..models.forza_vertex import ForzaVertex
-from typing import List, Dict
+from typing import List
 import bpy # type: ignore
 
 def calculate_face_count(indices, index_type):
@@ -19,13 +19,6 @@ def calculate_face_count(indices, index_type):
         return len(indices) / 3
     else:
         raise TypeError("Unknown index type.")
-
-def calculate_vertex_count(indices):
-    hashtable = {}
-    for num in indices:
-        if num != -1:
-            hashtable[num] = 0
-    return len(hashtable)
 
 def read_indices(f, count, size):
     array = []
@@ -69,26 +62,6 @@ def generate_triangle_list(indices: List[int], face_count: int) -> List[int]:
         else:
             flag = True
             num += 3
-
-    return array
-
-def generate_vertices(section_vertices: List[ForzaVertex], sub_section_indices: List[int]) -> List[ForzaVertex]:
-    num = 0
-    hashtable: Dict[int, int] = {}
-    num2 = len(sub_section_indices)
-
-    for i in range(num2):
-        num3 = sub_section_indices[i]
-        if num3 != -1:
-            if num3 not in hashtable:
-                hashtable[num3] = num
-                num += 1
-            sub_section_indices[i] = hashtable[num3]
-
-    array: List[ForzaVertex] = [None] * num 
-
-    for key, value in hashtable.items():
-        array[value] = section_vertices[key]
 
     return array
 

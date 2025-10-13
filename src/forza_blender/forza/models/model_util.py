@@ -49,10 +49,10 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, texture
     if track_bin.forza_version.name != context.scene.forza_selection:
         raise RuntimeError("Forza version mismatch!")
     for track_section in track_bin.track_sections:
-        for track_subsection in track_section.subsections:
-            # track_section_num track_section_name track_subsection_name
-            meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_subsection.name
-            forza_mesh = ForzaMesh(meshName, track_subsection.name, track_subsection.indices, track_subsection.vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
-            rmbbin_meshes.append(forza_mesh)
+        # track_section_num track_section_name track_subsection_name
+        meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_section.subsections[0].name
+        vertices, indices = track_section.generate_vertices()
+        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, indices, vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
+        rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes

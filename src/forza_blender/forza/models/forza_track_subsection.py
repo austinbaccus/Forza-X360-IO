@@ -1,14 +1,10 @@
 import struct
-from typing import List
 from mathutils import Vector # type: ignore
 from .index_type import IndexType
-from .forza_vertex import ForzaVertex
-from ..utils.mesh_util import calculate_vertex_count, calculate_face_count, read_indices
+from ..utils.mesh_util import calculate_face_count, read_indices
 
 class ForzaTrackSubSection:
     def __init__(self, f):
-        # vertices
-        self.vertices: List[ForzaVertex] = None
         assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
         
@@ -52,5 +48,4 @@ class ForzaTrackSubSection:
             raise RuntimeError("analyze this!")
         
         # counts
-        self.vertex_count = calculate_vertex_count(self.indices)
         self.face_count = calculate_face_count(self.indices, self.index_type)
