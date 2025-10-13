@@ -7,11 +7,7 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, forza_last_textur
     materials = []
     for shader_filename in forza_mesh.shader_filenames:
         shader_filename_simple = (shader_filename.split('\\')[-1]).split('.')[0]
-
-        # for debugging only!
-        #if "terr_blnd_spec_norm_5" == shader_filename_simple:
-        #    materials.append(_terr_blnd_spec_norm_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
-
+        
         if "diff_spec_1" == shader_filename_simple:
             materials.append(_diff_spec_1(forza_mesh, forza_last_texture_folder, shader_filename_simple))
         elif "diff_opac_2" == shader_filename_simple:
@@ -64,7 +60,6 @@ def _unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
         links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
 
     return mat
@@ -91,7 +86,6 @@ def _diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: s
         links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
 
     return mat
@@ -125,8 +119,6 @@ def _diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: s
         links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 2, False)
 
     return mat
@@ -165,8 +157,6 @@ def _diff_spec_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_na
         links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 4, False)
 
     return mat
@@ -195,7 +185,6 @@ def _diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shad
         links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 3, False)
 
     return mat
@@ -213,23 +202,12 @@ def _ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, sha
     # nodes
     if len(images) > 0:
         nodes.clear()
-        sea_texture_path = r"X:\3d\games\forza\games\fm3\fm3_d1\fm3\Media\Tracks\_decompressed\AmalfiGP\bin\textures\sea.png"
-        bpy.data.images.load(sea_texture_path, check_existing=True)
-        tex = nodes.new("ShaderNodeTexImage"); tex.image = bpy.data.images.load(sea_texture_path, check_existing=True); tex.location = (-600, 0)
-        normal = nodes.new("ShaderNodeTexImage"); normal.image = images[1]; normal.location = (-600, 0)
-        normal_map = nodes.new(type='ShaderNodeNormalMap')
-
-        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0)
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (-200, 0); bsdf.inputs["Base Color"].default_value = (39, 232, 245, 1.0)
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (200, 0)
 
         # link
-        links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
-        links.new(normal.outputs["Color"], normal_map.inputs[0])
-        links.new(normal_map.outputs[0], bsdf.inputs["Normal"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
 
     return mat
@@ -333,8 +311,6 @@ def _bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shade
         links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
 
     return mat
@@ -364,8 +340,6 @@ def _diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_
         links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-    
-    # TODO: is mat passed by reference or value? it won't work if it's passed in by value
     add_extra_images_to_material(mat, images, 1, False)
 
     return mat
