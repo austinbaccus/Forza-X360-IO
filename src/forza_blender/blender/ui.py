@@ -96,7 +96,7 @@ def _draw_track_import_box(context, layout):
 def _draw_import_button(context, layout, enabled: bool):
     layout.separator()
     import_row = layout.row()
-    import_row.operator("forza.import_track", icon="CUBE")
+    import_row.operator("forza.import_track_modal", icon="CUBE")
     import_row.enabled = enabled
 
 classes = (FORZA_PT_main,)
