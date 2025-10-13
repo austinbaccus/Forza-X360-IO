@@ -10,11 +10,13 @@ class PVSHeader:
             raise RuntimeError("Wrong magic number.")
         version = stream.read_u32()
         # the template supports much more versions, but you can implement only FM3 support and add more versions later if neccessary
-        if version > 24:
-            print(F"Warning: Unsupported PVS version. Found: {version}. Max supported: 24")
+        if version > 27:
+            print(F"Warning: Unsupported PVS version. Found: {version}. Max supported: 27")
         if version < 24:
             print(F"Warning: Unsupported PVS version. Found: {version}. Min supported: 24")
         stream.skip(4) # just skip fields if you don't need them
+        if version >= 27:
+            stream.skip(4)
         return PVSHeader(version)
 
 class PVSZone:
@@ -36,10 +38,13 @@ class PVSModelInstance:
         self.flags = flags
         self.transform = transform
 
-    def from_stream(stream: BinaryStream):
+    def from_stream(stream: BinaryStream, version):
         model_index = stream.read_u16()
         flags = stream.read_u32()
-        stream.skip(20)
+        if version >= 25:
+            stream.skip(32)
+        else:
+            stream.skip(20)
         
         translate_x: float = stream.read_f32()
         translate_y: float = stream.read_f32()
@@ -105,7 +110,7 @@ class PVS:
         shaders_length = stream.read_u32()
         shaders = [stream.read_string() for _ in range(shaders_length)] # a string with 32-bit size prefix
         models_instances_length = stream.read_u32()
-        models_instances = [PVSModelInstance.from_stream(stream) for _ in range(models_instances_length)]
+        models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(models_instances_length)]
         models_length = stream.read_u32()
         models = [PVSModel.from_stream(stream,idx) for idx in range(models_length)]
         return PVS(header, models_instances, models, textures, shaders)

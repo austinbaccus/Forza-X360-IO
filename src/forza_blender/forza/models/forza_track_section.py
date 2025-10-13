@@ -13,9 +13,11 @@ class VertexBuffer:
         self.data = data
 
     def from_stream(stream: BinaryStream):
-        assert(2 == stream.read_u32())
+        version = stream.read_u32()
         length: int = stream.read_u32()
         stride: int = stream.read_u32()
+        if version >= 3:
+            stream.skip(4)
         data = stream.read(stride * length)
         return VertexBuffer(length, stride, data)
 

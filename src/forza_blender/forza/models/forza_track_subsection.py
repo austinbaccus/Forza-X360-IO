@@ -9,7 +9,9 @@ class IndexBuffer:
         self.data = data
 
     def from_stream(stream: BinaryStream):
-        assert(3 == stream.read_u32())
+        version = stream.read_u32()
+        if version >= 4:
+            stream.skip(4)
         length = stream.read_u32()
         stride = stream.read_u32()
         data = stream.read(stride * length)
