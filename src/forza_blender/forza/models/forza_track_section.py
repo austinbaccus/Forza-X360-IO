@@ -1,5 +1,6 @@
 import numpy as np
 from forza_blender.forza.pvs.pvs_util import BinaryStream
+from forza_blender.forza.shaders.read_shader import VertexElement
 from ..utils.mesh_util import generate_triangle_list
 from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
@@ -48,8 +49,8 @@ class ForzaTrackSection:
         return ForzaTrackSection(name, vertex_buffer, subsections)
         
 
-    def generate_vertices(self):
-        vertices: ForzaVertex = ForzaVertex.from_buffer(self.vertex_buffer.data, self.vertex_buffer.stride)
+    def generate_vertices(self, elements: list[VertexElement]):
+        vertices: ForzaVertex = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
 
         # uv adjustments
         sub = self.subsections[0] # assume that all submeshes have the same UV transform

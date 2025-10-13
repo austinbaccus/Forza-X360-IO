@@ -85,11 +85,12 @@ class PVSTexture:
         return PVSTexture(texture_file_name)
 
 class PVS:
-    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture]):
+    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str]):
         self.header = header
         self.models_instances = models_instances
         self.models = models
         self.textures = textures
+        self.shaders = shaders
 
     def from_stream(stream: BinaryStream):
         header = PVSHeader.from_stream(stream) # type: ignore
@@ -100,10 +101,9 @@ class PVS:
         textures_length = stream.read_u32()
         textures = [PVSTexture.from_stream(stream) for _ in range(textures_length)]
         shaders_length = stream.read_u32()
-        for _ in range(shaders_length):
-            stream.read_string() # a string with 32-bit size prefix
+        shaders = [stream.read_string() for _ in range(shaders_length)] # a string with 32-bit size prefix
         models_instances_length = stream.read_u32()
         models_instances = [PVSModelInstance.from_stream(stream) for _ in range(models_instances_length)]
         models_length = stream.read_u32()
         models = [PVSModel.from_stream(stream,idx) for idx in range(models_length)]
-        return PVS(header, models_instances, models, textures)
+        return PVS(header, models_instances, models, textures, shaders)

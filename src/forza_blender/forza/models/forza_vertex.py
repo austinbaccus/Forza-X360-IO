@@ -1,4 +1,5 @@
 import numpy as np
+from forza_blender.forza.shaders.read_shader import VertexElement
 from mathutils import Vector # type: ignore
 
 class ForzaVertex:
@@ -7,47 +8,49 @@ class ForzaVertex:
         self.texcoords = texcoords
         self.normal = None
 
-    def from_buffer(buf: bytes, size: int):
+    def from_buffer(buf: bytes, elements: list[VertexElement]):
         has_position = False
         has_texcoord = [False] * 3
-        if size == 12:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4")]))
-            has_position = True
-        elif size == 16:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V")]))
-            has_position = True
-        elif size == 20:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2")]))
-            has_position = True
-            has_texcoord[0] = True
-        elif size == 24:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2")]))
-            has_position = True
-            has_texcoord[0] = True
-            has_texcoord[1] = True
-        elif size == 28:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("gap1", "8V")]))
-            has_position = True
-            has_texcoord[0] = True
-        elif size == 32:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
-            has_position = True
-            has_texcoord[0] = True
-            has_texcoord[1] = True
-        elif size == 36:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "8V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
-            has_position = True
-            has_texcoord[0] = True
-            has_texcoord[1] = True
-        elif size == 40:
-            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "16V")]))
-            has_position = True
-            has_texcoord[0] = True
-            has_texcoord[1] = True
-        else:
-            raise RuntimeError("Vertex data is the wrong size.")
+        dtype_columns = []
+        gap_index = 0
+        for element in elements:
+            if element.usage == 0: # POSITION0
+                if element.usage_index == 0:
+                    has_position = True
+                    name = "position"
+                else:
+                    raise RuntimeError()
+                if element.type == 2761657: # D3DDECLTYPE_FLOAT3
+                    format = ">3f4"
+                else:
+                    raise RuntimeError()
+            elif element.usage == 5:
+                if element.usage_index == 0: # TEXCOORD0
+                    has_texcoord[0] = True
+                    name = "texcoord0"
+                elif element.usage_index == 1: # TEXCOORD1
+                    has_texcoord[1] = True
+                    name = "texcoord1"
+                elif element.usage_index == 2: # TEXCOORD2
+                    has_texcoord[2] = True
+                    name = "texcoord2"
+                else:
+                    raise RuntimeError()
+                if element.type == 2891865: # D3DDECLTYPE_USHORT2N
+                    format = ">2u2"
+                else:
+                    raise RuntimeError()
+            else:
+                if element.type == 1712519 or element.type == 1583238: # D3DDECLTYPE_DEC4N, D3DDECLTYPE_D3DCOLOR
+                    dtype_columns.append((F"gap{gap_index}", np.void, 4))
+                    gap_index += 1
+                else:
+                    raise RuntimeError()
+                continue
+            dtype_columns.append((name, format))
         if not has_position:
             raise RuntimeError()
+        vertex = np.frombuffer(buf, np.dtype(dtype_columns))
         texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
         return ForzaVertex(vertex["position"], texcoords)
 
