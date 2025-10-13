@@ -2,49 +2,54 @@ import numpy as np
 from mathutils import Vector # type: ignore
 
 class ForzaVertex:
-    def __init__(self, f, size: int):
-        self.position = None
-        self.texcoords = [None] * 3
+    def __init__(self, position, texcoords):
+        self.position = position
+        self.texcoords = texcoords
         self.normal = None
-        self.read_vertex(f, size)
 
-    def read_vertex(self, f, size: int):
+    def from_buffer(buf: bytes, size: int):
+        has_position = False
+        has_texcoord = [False] * 3
         if size == 12:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4")]))
-            self.position = vertex["position"]
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4")]))
+            has_position = True
         elif size == 16:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V")]))
-            self.position = vertex["position"]
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V")]))
+            has_position = True
         elif size == 20:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2")]))
+            has_position = True
+            has_texcoord[0] = True
         elif size == 24:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
-            self.texcoords[1] = vertex["texcoord1"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2")]))
+            has_position = True
+            has_texcoord[0] = True
+            has_texcoord[1] = True
         elif size == 28:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("gap1", "8V")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("gap1", "8V")]))
+            has_position = True
+            has_texcoord[0] = True
         elif size == 32:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
-            self.texcoords[1] = vertex["texcoord1"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
+            has_position = True
+            has_texcoord[0] = True
+            has_texcoord[1] = True
         elif size == 36:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "8V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
-            self.texcoords[1] = vertex["texcoord1"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "8V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "8V")]))
+            has_position = True
+            has_texcoord[0] = True
+            has_texcoord[1] = True
         elif size == 40:
-            vertex = np.frombuffer(f, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "16V")]))
-            self.position = vertex["position"]
-            self.texcoords[0] = vertex["texcoord0"] / 65535
-            self.texcoords[1] = vertex["texcoord1"] / 65535
+            vertex = np.frombuffer(buf, np.dtype([("position", ">3f4"), ("gap0", "4V"), ("texcoord0", ">2u2"), ("texcoord1", ">2u2"), ("gap1", "16V")]))
+            has_position = True
+            has_texcoord[0] = True
+            has_texcoord[1] = True
         else:
             raise RuntimeError("Vertex data is the wrong size.")
+        if not has_position:
+            raise RuntimeError()
+        texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
+        return ForzaVertex(vertex["position"], texcoords)
 
     def _get_normalized_101010(self, packed_value: int):
         # layout matches R10G10B10: bits [0..9]=X, [10..19]=Y, [20..29]=Z. Top 2 bits ignored.

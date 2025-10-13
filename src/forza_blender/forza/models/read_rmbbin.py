@@ -1,49 +1,68 @@
 from forza_blender.forza.pvs.pvs_util import BinaryStream
 from .forza_track_section import ForzaTrackSection
 
+class Material:
+    def __init__(self, fx_filename_index: int):
+        self.fx_filename_index = fx_filename_index
+
+    def from_stream(stream: BinaryStream):
+        stream.skip(4) # version
+        fx_filename_index = stream.read_u32()
+        stream.skip(4) # techniqueindex
+
+        # VertexShaderConstants_Container
+        stream.skip(4) # version
+        length = stream.read_u32()
+        #vertex_shader_constants = [[stream.read_f32() for _ in range(4)] for _ in range(length)]
+        stream.skip(16*length)
+
+        # PixelShaderConstants_Container
+        stream.skip(4) # version
+        length = stream.read_u32()
+        stream.skip(16*length)
+
+        # TextureSamplerIndices_Container
+        stream.skip(4) # version
+        length = stream.read_u32()
+        stream.skip(4*length)
+        return Material(fx_filename_index)
+
+class MaterialSet:
+    def __init__(self, materials: list[Material]):
+        self.materials = materials
+
+    def from_stream(stream: BinaryStream):
+        stream.skip(8) # MaterialSet version, Container version
+        materials_length: int = stream.read_u32()
+        materials = [Material.from_stream(stream) for _ in range(materials_length)]
+        return MaterialSet(materials)
+
 class RmbBin:
-    def __init__(self, path_file):
+    def __init__(self, path_file: str, version: int, track_sections: list[ForzaTrackSection], material_sets: list[MaterialSet], shader_filenames: list[str]):
         self.path_file = path_file
-        self.track_sections = []
-        self.shader_filenames = []
+        self.version = version
+        self.track_sections = track_sections
+        self.material_sets = material_sets
+        self.shader_filenames = shader_filenames
 
-    def populate_objects_from_rmbbin(self):
-        stream = BinaryStream.from_path(self.path_file, ">")
+    def from_path(path_file: str):
+        stream = BinaryStream.from_path(path_file, ">")
 
-        self.version = stream.read_u32()
+        version = stream.read_u32()
 
         stream.skip(112)
 
         # read SubModel_Container section
         track_sections_count: int = stream.read_u32()
-        self.track_sections = [ForzaTrackSection(stream) for _ in range(track_sections_count)]
+        track_sections = [ForzaTrackSection.from_stream(stream) for _ in range(track_sections_count)]
 
         # read MaterialSets_Container section
         stream.skip(4) # version
-        material_sets_container_count: int = stream.read_u32()
-        for i in range(material_sets_container_count):
-            stream.skip(8) # MaterialSet version, Container version
-            material_container_count: int = stream.read_u32()
-            for j in range(material_container_count):
-                stream.skip(12) # version, fxfilenameindex, techniqueindex
-
-                # VertexShaderConstants_Container
-                stream.skip(4) # version
-                length: int = stream.read_u32()
-                vertex_shader_constants = [[stream.read_f32() for _ in range(4)] for _ in range(length)]
-                #stream.skip(length*16)
-
-                # PixelShaderConstants_Container
-                stream.skip(4) # version
-                length: int = stream.read_u32()
-                stream.skip(length*16)
-
-                # TextureSamplerIndices_Container
-                stream.skip(4) # version
-                length: int = stream.read_u32()
-                stream.skip(length*4)
+        material_sets_length: int = stream.read_u32()
+        material_sets = [MaterialSet.from_stream(stream) for _ in range(material_sets_length)]
 
         # read FxFileNames section
         stream.skip(4) # version
         fx_filenames_count: int = stream.read_u32()
-        self.shader_filenames = [stream.read_string() for _ in range(fx_filenames_count)]
+        shader_filenames = [stream.read_string() for _ in range(fx_filenames_count)]
+        return RmbBin(path_file, version, track_sections, material_sets, shader_filenames)

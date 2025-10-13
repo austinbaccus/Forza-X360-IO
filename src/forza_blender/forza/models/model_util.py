@@ -42,9 +42,8 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context) -> list[ForzaMe
     return instance_meshes
 
 def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, textures):
-    track_bin = RmbBin(path_trackbin)
+    track_bin: RmbBin = RmbBin.from_path(path_trackbin)
     rmbbin_meshes = []
-    track_bin.populate_objects_from_rmbbin()
 
     for track_section in track_bin.track_sections:
         # track_section_num track_section_name track_subsection_name
