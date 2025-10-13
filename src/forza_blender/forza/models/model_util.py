@@ -30,6 +30,10 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context) -> list[ForzaMe
                 # new york statue
                 print()
 
+            # TODO needs a more elegant solution  
+            if not context.scene.generate_lods and (pvs_model_instance.flags & (1 << 11)) == 0 and (pvs_model_instance.flags & (6 << 11)) != 0:
+                continue
+
             pvs_model = pvs.models[pvs_model_instance.model_index]
             pvs_texture_filenames = []
             for texture_idx in pvs_model.textures:
