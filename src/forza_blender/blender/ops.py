@@ -22,6 +22,73 @@ class FORZA_OT_track_import(Operator):
             _import_fm3(context, context.scene.forza_last_track_folder, context.scene.forza_last_ribbon_folder)
         return {'FINISHED'}
     
+class FORZA_OT_track_import_modal(Operator):
+    bl_idname = "forza.import_track_modal"
+    bl_label = "Import Track"
+    bl_options = {'REGISTER', 'INTERNAL'}
+
+    def _step(self, context):
+        """Do a small chunk of work and return True if more remains."""
+        # Example: process 1 item per call
+        if self.idx < len(self.items):
+            item = self.items[self.idx]
+            # ... do work for `item` here ...
+            # update status/progress
+            context.workspace.status_text_set(f"Processing {self.idx+1}/{len(self.items)}: {item}")
+            bpy.context.window_manager.progress_update(self.idx + 1)
+            self.idx += 1
+            return True
+        return False
+
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            steps_this_tick = 5
+            for _ in range(steps_this_tick):
+                if not self._step(context):
+                    self._finish(context, ok=True)
+                    return {'FINISHED'}
+            return {'PASS_THROUGH'}
+
+        elif event.type in {'ESC'}:
+            self._finish(context, ok=False)
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
+
+    def _finish(self, context, ok=True):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)
+        wm.progress_end()
+        context.workspace.status_text_set(None)
+        if ok:
+            self.report({'INFO'}, "Import finished")
+        else:
+            self.report({'WARNING'}, "Import cancelled")
+
+    def invoke(self, context, event):
+        if type(track_path) is not Path: track_path = Path(track_path)
+        if type(path_ribbon) is not Path: path_ribbon = Path(path_ribbon)
+        path_bin: Path = track_path / "bin"
+        path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
+
+        # Prepare your workload
+        meshes: list[ForzaMesh] = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
+        for instance_mesh in meshes:
+             _add_mesh_to_scene(context, instance_mesh, path_bin)
+
+
+        self.items = [f"item_{i}" for i in range(1000)]
+        self.idx = 0
+
+        # Progress bar
+        bpy.context.window_manager.progress_begin(0, len(self.items))
+
+        # Timer to drive modal steps
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.02, window=context.window)  # 50 FPS-ish
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
 class FORZA_OT_generate_textures(Operator):
     bl_idname = "forza.generate_textures"
     bl_label = "Generate Textures"
@@ -96,7 +163,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures)
+classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures,FORZA_OT_track_import_modal)
 
 
 def register():
@@ -106,23 +173,10 @@ def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
 def _import_fm3(context, track_path: Path, path_ribbon: Path):
-    if type(track_path) is not Path:
-        track_path = Path(track_path)
-    if type(path_ribbon) is not Path:
-        path_ribbon = Path(path_ribbon)
-
-    # get paths to important folders and files
+    if type(track_path) is not Path: track_path = Path(track_path)
+    if type(path_ribbon) is not Path: path_ribbon = Path(path_ribbon)
     path_bin: Path = track_path / "bin"
-    path_shaders: Path = path_bin / "shaders"
-    path_textures: Path = list(path_bin.glob("*.bix"))
-    if not path_ribbon.exists():
-        path_ribbon: Path = track_path / "Ribbon_01"
     path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
-    
-    # textures
-    if not context.scene.use_pregenerated_textures:
-        raise RuntimeError("Importing tracks without pre-generated textures is not implemented yet.")
-        #textures = _get_textures_from_track(path_textures)
 
     # meshes
     meshes: list[ForzaMesh] = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
@@ -132,6 +186,7 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         elif "LOD01" not in instance_mesh.name and "LOD02" not in instance_mesh.name: _add_mesh_to_scene(context, instance_mesh, path_bin) # TODO needs a more elegant solution  
         i = i + 1
         print(f"[{i}/{len(meshes)}]")
+        bpy.context.workspace.status_text_set(f"[{i}/{len(meshes)}] meshes imported")
 
 def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
     i = 0
@@ -143,6 +198,7 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
             indexed_textures[texture_idx] = img
         i = i + 1
         print(f"[{i}/{len(path_textures)}]")
+        bpy.context.workspace.status_text_set(f"[{i}/{len(path_textures)}] textures generated")
 
 def _get_meshes_from_track(path_bin: Path, path_ribbon_pvs: Path, context) -> list[ForzaMesh]:
     return generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context)
