@@ -15,7 +15,7 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
             rmbbin_index = int(str(path_rmbbin.name).split('.')[1])
             rmbbin_files[rmbbin_index] = path_rmbbin
 
-    #instance_meshes = []
+    instance_meshes = []
     pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
 
     shaders: dict[str, FXLShader] = {}
@@ -27,11 +27,6 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
     i = 0
     for pvs_model_instance in pvs.models_instances:
         try:
-            if pvs_model_instance.model_index == 826:
-                # new york statue
-                print()
-
-            # TODO needs a more elegant solution  
             if not context.scene.generate_lods and (pvs_model_instance.flags & (1 << 11)) == 0 and (pvs_model_instance.flags & (6 << 11)) != 0:
                 continue
 
@@ -52,7 +47,7 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
         print(f"[{i}/{len(pvs.models_instances)}] meshes imported")
         bpy.context.workspace.status_text_set(f"[{i}/{len(pvs.models_instances)}] meshes imported")
         
-    #return instance_meshes
+    return instance_meshes
 
 def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, textures, shaders: dict[str, FXLShader]):
     track_bin: RmbBin = RmbBin.from_path(path_trackbin)
