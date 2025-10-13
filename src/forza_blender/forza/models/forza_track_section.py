@@ -1,61 +1,73 @@
-import struct
-from typing import List
-from ..utils.mesh_util import generate_triangle_list, generate_triangle_list, generate_vertices
+import numpy as np
+from forza_blender.forza.pvs.pvs_util import BinaryStream
+from forza_blender.forza.shaders.read_shader import VertexElement
+from ..utils.mesh_util import generate_triangle_list
 from .forza_track_subsection import ForzaTrackSubSection
 from .forza_vertex import ForzaVertex
-from .forza_vertex_type import ForzaVertexType
 from .index_type import IndexType
-from ..utils.forza_version import ForzaVersion
+
+class VertexBuffer:
+    def __init__(self, length: int, stride: int, data: bytes):
+        self.length = length
+        self.stride = stride
+        self.data = data
+
+    def from_stream(stream: BinaryStream):
+        assert(2 == stream.read_u32())
+        length: int = stream.read_u32()
+        stride: int = stream.read_u32()
+        data = stream.read(stride * length)
+        return VertexBuffer(length, stride, data)
 
 class ForzaTrackSection:
-    def __init__(self, f, forza_version: ForzaVersion):
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0]  )
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        f.read(12)
-        assert(0.0 == struct.unpack(">f", f.read(4))[0])
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+    def __init__(self, name: str, vertex_buffer: VertexBuffer, subsections: list[ForzaTrackSubSection]):
+        self.name = name
+        self.vertex_buffer = vertex_buffer
+        self.subsections = subsections
+
+    def from_stream(stream: BinaryStream):
+        assert(1 == stream.read_u32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        stream.skip(12)
+        assert(0.0 == stream.read_f32())
+        assert(1 == stream.read_u32())
 
         # name
-        length = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        name_bytes = f.read(length)
-        self.name : str = name_bytes.decode("latin_1")
+        name: str = stream.read_string("latin_1")
 
-        assert(2 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        vertex_buffer = VertexBuffer.from_stream(stream)
 
-        # forza vertex array
-        num: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        size: int = int.from_bytes(f.read(4), byteorder="big", signed=False)
-
-        base_vertices: List[ForzaVertex] = [None] * num
-        for i in range(num):
-            base_vertices[i] = ForzaVertex(f, size, ForzaVertexType.Track, forza_version)
-
-        assert(1 == int.from_bytes(f.read(4), byteorder="big", signed=False))
+        assert(1 == stream.read_u32())
 
         # individual meshes
-        sub_count = int.from_bytes(f.read(4), byteorder="big", signed=False)
-        self.subsections :List[ForzaTrackSubSection] = [None] * sub_count
+        sub_count = stream.read_u32()
+        subsections = [ForzaTrackSubSection.from_stream(stream) for _ in range(sub_count)]
 
-        for j in range(sub_count):
-            sub = ForzaTrackSubSection(f)
+        return ForzaTrackSection(name, vertex_buffer, subsections)
+        
 
-            # generate per-subsection vertices
-            sub.vertices = generate_vertices(base_vertices, sub.indices)
+    def generate_vertices(self, elements: list[VertexElement]):
+        vertices: ForzaVertex = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
 
-            # uv adjustments
-            for v in sub.vertices:
-                v.texture0 *= sub.uv_tile
-                v.texture1 *= sub.uv_tile
-                v.texture0 += sub.uv_offset
-                v.texture1 += sub.uv_offset
-                v.texture0.y = 1.0 - v.texture0.y
-                v.texture1.y = 1.0 - v.texture1.y
+        # uv adjustments
+        sub = self.subsections[0] # assume that all submeshes have the same UV transform
+        for texcoord in vertices.texcoords:
+            if texcoord is None:
+                continue
+            texcoord *= sub.uv_scale
+            texcoord += sub.uv_offset
+            texcoord[:, 1] = 1.0 - texcoord[:, 1]
 
+        faces = []
+        for sub in self.subsections:
+            indices = np.frombuffer(sub.index_buffer.data, ">u4" if sub.index_buffer.is_32bit else ">u2")
             # convert tristrips to triangle list if needed
             if sub.index_type == IndexType.TriStrip:
-                sub.indices = generate_triangle_list(sub.indices, sub.face_count)
+                faces.append(generate_triangle_list(indices, 0xFFFFFF if sub.index_buffer.is_32bit else 0xFFFF))
+            else:
+                faces.append(indices.reshape(-1, 3))
 
-            self.subsections[j] = sub
+        return vertices, np.concatenate(faces)
