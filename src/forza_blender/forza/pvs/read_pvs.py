@@ -82,14 +82,24 @@ class PVSModel:
         return PVSModel(model_index, textures, shaders)
 
 class PVSTexture:
-    def __init__(self, texture_file_name):
+    def __init__(self, texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate):
         self.texture_file_name = texture_file_name
+        self.index_in_stx_bin = index_in_stx_bin
+        self.u_scale = u_scale
+        self.v_scale = v_scale
+        self.u_translate = u_translate
+        self.v_translate = v_translate
         
     def from_stream(stream: BinaryStream):
         texture_file_name = stream.read_u32()
-        stream.skip(24)
+        index_in_stx_bin = stream.read_u32()
+        u_scale = stream.read_f32()
+        v_scale = stream.read_f32()
+        u_translate = stream.read_f32()
+        v_translate = stream.read_f32()
+        stream.skip(4)
 
-        return PVSTexture(texture_file_name)
+        return PVSTexture(texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate)
 
 class PVS:
     def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str]):
