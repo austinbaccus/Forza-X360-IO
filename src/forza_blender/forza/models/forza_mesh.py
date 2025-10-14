@@ -4,7 +4,7 @@ from .forza_vertex import ForzaVertex
 class ForzaMesh:
     def __init__(self, name: str, material_name: str, faces, vertices: ForzaVertex, material_indexes, track_bin, track_section, transform, model_index = None, textures = None, shader_filenames = None):
         self.name = name
-        self.material_name = material_name # TODO: is this the shader?
+        self.material_name = material_name
         self.faces = faces
         self.vertices = vertices
         self.material_indexes = material_indexes

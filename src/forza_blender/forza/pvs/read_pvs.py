@@ -93,10 +93,10 @@ class PVSTexture:
     def from_stream(stream: BinaryStream):
         texture_file_name = stream.read_u32()
         index_in_stx_bin = stream.read_u32()
-        u_scale = stream.read_f()
-        v_scale = stream.read_f()
-        u_translate = stream.read_f()
-        v_translate = stream.read_f()
+        u_scale = stream.read_f32()
+        v_scale = stream.read_f32()
+        u_translate = stream.read_f32()
+        v_translate = stream.read_f32()
         stream.skip(4)
 
         return PVSTexture(texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate)
