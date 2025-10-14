@@ -5,37 +5,39 @@ from forza_blender.forza.textures.texture_util import get_image_from_index
 
 def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, forza_last_texture_folder):
     materials = []
-    for shader_filename in forza_mesh.shader_filenames:
-        shader_filename_simple = (shader_filename.split('\\')[-1]).split('.')[0]
-        
+    for sub in forza_mesh.track_section.subsections:
+        fx_filename_index = forza_mesh.track_bin.material_sets[0].materials[sub.material_index].fx_filename_index
+        shader_filename_simple = (forza_mesh.track_bin.shader_filenames[fx_filename_index].split('\\')[-1]).split('.')[0]
+        material_name = F"{sub.name} {shader_filename_simple}"
+
         if "diff_spec_1" == shader_filename_simple:
-            materials.append(_diff_spec_1(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_spec_1(forza_mesh, forza_last_texture_folder, material_name))
         elif "diff_opac_2" == shader_filename_simple:
-            materials.append(_diff_opac_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_opac_2(forza_mesh, forza_last_texture_folder, material_name))
         elif "diff_spec_opac_refl_3" == shader_filename_simple:
-            materials.append(_diff_spec_opac_refl_3(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_spec_opac_refl_3(forza_mesh, forza_last_texture_folder, material_name))
         elif "diff_spec_refl" == shader_filename_simple:
-            materials.append(_diff_spec_refl(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_spec_refl(forza_mesh, forza_last_texture_folder, material_name))
         elif "diff_spec_refl_3" == shader_filename_simple:
-            materials.append(_diff_spec_refl_3(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_spec_refl_3(forza_mesh, forza_last_texture_folder, material_name))
         elif "road_blnd_2" == shader_filename_simple:
-            materials.append(_road_blnd_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_road_blnd_2(forza_mesh, forza_last_texture_folder, material_name))
         elif "road_diff_spec_ovly_blur_detailscale_2" == shader_filename_simple:
-            materials.append(_road_diff_spec_ovly_blur_detailscale_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_road_diff_spec_ovly_blur_detailscale_2(forza_mesh, forza_last_texture_folder, material_name))
         elif "ocean_anim_norm_refl_5" == shader_filename_simple:
-            materials.append(_ocean_anim_norm_refl_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_ocean_anim_norm_refl_5(forza_mesh, forza_last_texture_folder, material_name))
         elif "bush_diff_opac_2_2sd" == shader_filename_simple:
-            materials.append(_bush_diff_opac_2_2sd(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_bush_diff_opac_2_2sd(forza_mesh, forza_last_texture_folder, material_name))
         elif "tree_diff_opac_2_2sd" == shader_filename_simple:
-            materials.append(_tree_diff_opac_2_2sd(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_tree_diff_opac_2_2sd(forza_mesh, forza_last_texture_folder, material_name))
         elif "diff_opac_clampv_2" == shader_filename_simple:
-            materials.append(_diff_opac_clampv_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_diff_opac_clampv_2(forza_mesh, forza_last_texture_folder, material_name))
         elif "terr_blnd_spec_norm_5" == shader_filename_simple:
-            materials.append(_terr_blnd_spec_norm_5(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_terr_blnd_spec_norm_5(forza_mesh, forza_last_texture_folder, material_name))
         elif "road_3clr_blnd_2" == shader_filename_simple:
-            materials.append(_road_3clr_blnd_2(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_road_3clr_blnd_2(forza_mesh, forza_last_texture_folder, material_name))
         else:
-            materials.append(_unknown(forza_mesh, forza_last_texture_folder, shader_filename_simple))
+            materials.append(_unknown(forza_mesh, forza_last_texture_folder, material_name))
     return materials
 
 def _unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):

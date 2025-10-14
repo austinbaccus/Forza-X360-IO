@@ -66,8 +66,8 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, texture
         meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_section.subsections[0].name
         # TODO: replace with proper shader selection based on .pvs file
         fx_index = track_bin.material_sets[0].materials[track_section.subsections[0].material_index].fx_filename_index
-        vertices, faces = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
-        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
+        vertices, faces, material_indexes = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
+        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
         rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes

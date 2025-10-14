@@ -20,5 +20,6 @@ def convert_forzamesh_into_blendermesh(forza_mesh: ForzaMesh):
     faces = forza_mesh.faces
     mesh = bpy.data.meshes.new(name=forza_mesh.name)
     mesh.from_pydata(vertices, [], faces, False)
+    mesh.polygons.foreach_set("material_index", forza_mesh.material_indexes)
     mesh.validate()
     return mesh
