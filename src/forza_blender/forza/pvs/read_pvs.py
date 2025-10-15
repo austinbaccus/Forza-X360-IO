@@ -102,12 +102,16 @@ class PVSTexture:
         return PVSTexture(texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate)
 
 class PVS:
-    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str]):
+    def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str], sky_model_instance: PVSModelInstance, sky_model: PVSModel, lone_models_instances: list[PVSModelInstance], prefix: str):
         self.header = header
         self.models_instances = models_instances
         self.models = models
         self.textures = textures
         self.shaders = shaders
+        self.sky_model_instance = sky_model_instance
+        self.sky_model = sky_model
+        self.lone_models_instances = lone_models_instances
+        self.prefix = prefix
 
     def from_stream(stream: BinaryStream):
         header = PVSHeader.from_stream(stream) # type: ignore
@@ -123,4 +127,19 @@ class PVS:
         models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(models_instances_length)]
         models_length = stream.read_u32()
         models = [PVSModel.from_stream(stream,idx) for idx in range(models_length)]
-        return PVS(header, models_instances, models, textures, shaders)
+        if header.version >= 26:
+            sky_model_instance = None
+            sky_model = None
+            unk0_length = stream.read_u32()
+            stream.skip(2 * unk0_length)
+            unk1_length = stream.read_u32()
+            stream.skip(2 * unk1_length)
+            unk2_length = stream.read_u32()
+            stream.skip(2 * unk2_length)
+        else:
+            sky_model_instance = PVSModelInstance.from_stream(stream, header.version)
+            sky_model = PVSModel.from_stream(stream, -1)
+        lone_models_instances_length = stream.read_u32()
+        lone_models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(lone_models_instances_length)]
+        prefix = stream.read_string()
+        return PVS(header, models_instances, models, textures, shaders, sky_model_instance, sky_model, lone_models_instances, prefix)

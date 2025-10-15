@@ -25,40 +25,41 @@ def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_file
         print("Problem getting mesh from model index", pvs_model_instance.model_index)
 
 def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
-    rmbbin_files = get_rmbbin_files(path_bin)
     pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
 
-    instance_meshes = []
+    pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances.extend([model_instance for model_instance in pvs.lone_models_instances])
 
-    i = 0
-    for pvs_model_instance in pvs.models_instances:
+    unique_model_indexes = set([model_instance.model_index for model_instance in pvs_model_instances])
+    models_to_load = [(model_index, pvs.models[model_index], F"{model_index:05d}") for model_index in unique_model_indexes]
+    model_meshes: list[list[ForzaMesh] | None] = [None] * len(pvs.models)
+
+    if pvs.sky_model is not None:
+        pvs.sky_model_instance.model_index = len(model_meshes)
+        pvs_model_instances.append(pvs.sky_model_instance)
+        models_to_load.append((pvs.sky_model_instance.model_index, pvs.sky_model, "sky"))
+        model_meshes.append(None)
+
+    for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
+        pvs_texture_filenames = [pvs.textures[texture_idx] for texture_idx in pvs_model.textures]
+
+        # TODO: check if all textures for a track section are being passed to the track subsection
+
+        path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
         try:
-            if not context.scene.generate_lods and (pvs_model_instance.flags & (1 << 11)) == 0 and (pvs_model_instance.flags & (6 << 11)) != 0:
-                continue
-
-            pvs_model = pvs.models[pvs_model_instance.model_index]
-            pvs_texture_filenames = []
-            for texture_idx in pvs_model.textures:
-                pvs_texture_filenames.append(pvs.textures[texture_idx])
-
-            # TODO: check if all textures for a track section are being passed to the track subsection
-
-            path_to_rmbbin = rmbbin_files[pvs_model_instance.model_index]
-            pvs_model_meshes = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_model_instance.transform, pvs_texture_filenames, shaders)
-            instance_meshes.extend(pvs_model_meshes)
+            model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_texture_filenames, shaders)
         except:
-            print("Problem getting mesh from model index", pvs_model_instance.model_index)
-        
-        i = i + 1
-        print(f"[{i}/{len(pvs.models_instances)}] meshes imported")
-        bpy.context.workspace.status_text_set(f"[{i}/{len(pvs.models_instances)}] meshes imported")
-        
-    return instance_meshes
+            print("Problem getting mesh from model index", model_index)
 
-def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, textures, shaders: dict[str, FXLShader]):
+        print(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+        bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+
+    return pvs, pvs_model_instances, models_to_load, model_meshes
+
+def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures, shaders: dict[str, FXLShader]):
     track_bin: RmbBin = RmbBin.from_path(path_trackbin)
-    rmbbin_meshes = []
+    rmbbin_meshes: list[ForzaMesh] = []
 
     # assume that all submeshes have the same vertex buffer layout, even if they have different shaders
     for track_section in track_bin.track_sections:
@@ -67,7 +68,7 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, transform, texture
         # TODO: replace with proper shader selection based on .pvs file
         fx_index = track_bin.material_sets[0].materials[track_section.subsections[0].material_index].fx_filename_index
         vertices, faces, material_indexes = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
-        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, transform=transform, model_index=int(path_trackbin.name.split('.')[1]), textures=textures, shader_filenames=track_bin.shader_filenames)
+        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, textures=textures, shader_filenames=track_bin.shader_filenames)
         rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
