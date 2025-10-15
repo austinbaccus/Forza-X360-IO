@@ -61,8 +61,8 @@ class Shaders:
         # nodes
         diffuse_node = mat.node_tree.nodes[0]
         ambient_occlusion_node = mat.node_tree.nodes[1]
-        out = mat.node_tree.nodes[-1]; out.location = (600, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (900, 0)
+        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-900, -300)
 
@@ -151,7 +151,8 @@ class Shaders:
         asphalt_node = mat.node_tree.nodes[0]
         tiremarks_node = mat.node_tree.nodes[1]
         shadow_node = mat.node_tree.nodes[2]
-        bsdf = mat.node_tree.nodes[-2]
+        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
         mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.inputs['Fac'].default_value = 0.8; mix_rgb_node.blend_type = 'OVERLAY'
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
 
