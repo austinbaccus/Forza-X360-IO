@@ -219,7 +219,7 @@ def _add_mesh_to_scene(context, forza_mesh, path_bin: Path):
     # material
     if context.scene.generate_mats:
         if context.scene.use_pregenerated_textures:
-            mats = generate_blender_materials_for_mesh(forza_mesh, context.scene.forza_last_texture_folder)
+            mats = generate_blender_materials_for_mesh(forza_mesh, context.scene.forza_last_track_folder)
         else:
             raise RuntimeError("Importing materials without pre-generated textures is not implemented yet.")
         for mat in mats:

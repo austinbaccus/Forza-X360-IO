@@ -1,0 +1,1335 @@
+//------------------------------------------------
+//--- 010 Editor v16.0.1 Binary Template
+//
+//      File: Common Asset File Format
+//   Authors: Doliman100
+//   Version: 0.0 (FM2)
+//   Purpose: 
+//  Category: 
+// File Mask: *.rmb.bin, *.stx.bin, _0x*.bin
+//  ID Bytes: 43 41 46 46
+//   History: 
+//------------------------------------------------
+
+// TODO: mode to resolve pointers. don't parse asset and everything below
+// mark pointers with green and blue, and mark 1st destination byte with yellow
+// everything from 1st yellow byte until the next yellow byte is single referenced block
+// since bytes between these two points can't be accessed in other way
+
+BitfieldRightToLeft();
+
+int64 VersionFromString(char s[]) {
+    local int day, month, year;
+    local int64 version;
+    SScanf(s, "%2d.%2d.%2d.%4d", day, month, year, version);
+    return version * 1000000 + year * 10000 + month * 100 + day;
+}
+// TODO: Version struct, VersionIsAtLeast(version, "21.11.05.0034")
+
+struct {
+    char magic[4]; // CAFF; char *
+    char version_string[16]; // 21.11.05.0034; char *
+    local int64 version = VersionFromString(version_string);
+    if (version < VersionFromString("21.11.05.0034") || version > VersionFromString("07.08.06.0036")) {
+        Printf("Warning: Version %d is not supported.\n", version);
+    }
+    local int endianness_address;
+    if (version < VersionFromString("07.08.06.0036")) {
+        endianness_address = 76;
+    } else {
+        endianness_address = 72;
+    }
+    if ((ReadUByte(endianness_address) & 0x1) != 0) {
+        BigEndian();
+        BitfieldRightToLeft();
+    } else {
+        LittleEndian();
+    }
+
+    if (version >= VersionFromString("07.08.06.0036")) {
+        uint32 header_size;
+    }
+    uint32 hash <format=hex>; // 20 _DWORD; header hash with hash=0; 32-bit PJW hash
+    uint32 assets_length; // 24 _DWORD
+    uint32 sections_length; // 28 _DWORD
+
+    struct HeaderUnknown1 {
+        uint32 a_length; // 0 _DWORD
+        uint32 a_offsets_length; // 4 _DWORD
+        uint32 b_length; // 8 _DWORD
+        uint32 b_offsets_length; // 12 _DWORD
+    } unk_1;
+    HeaderUnknown1 unk_2;
+
+    uint32 info_unk1_length; // guessed
+    if (version < VersionFromString("07.08.06.0036")) {
+        uint32 data_allocation_block_size; // 68 _DWORD
+        uint32 header_size; // 72 _DWORD; or allocation_blocks offset?
+    }
+    uint8 endianness; // 0 - LE, 1 - BE
+    uint8 allocation_blocks_length; // 77 _BYTE
+    uint8 compression; // 78 _BYTE compression; 0 - no compression, 1 - zlib
+    uint8 info_unk0_length; // guessed; known values: 0, 2, 1
+
+    if (version < VersionFromString("07.08.06.0036")) {
+        // .data, .gpu, .gpucached, .stream
+        struct AllocationBlockInfo { // SectionBlockInfo
+            if (header.version < VersionFromString("07.08.06.0036")) {
+                uint8 name[11];
+            } else {
+                uint32 name_offset;
+            }
+            uint8 alignment; // 11 _BYTE; real_alignment = 1 << alignment; 83A4E368
+            uint32 base_section_index; // 12 _DWORD
+            uint32 uncompressed_size; // 16 _DWORD
+            uint32 data_ptr; // 20 _DWORD; overwrite
+            uint32 data_offset; // 24 _DWORD; overwrite
+            uint32 data_overlap; // 28 _DWORD; overwrite; used for in-place decompression?
+            uint32 data_size; // 32 _DWORD; overwrite
+            uint32 compressed_size; // 36 _DWORD
+        } allocation_blocks_info[allocation_blocks_length] <optimize=false>;
+        uint8 padding[400 - 80 - 40 * allocation_blocks_length];
+    } else {
+        uint32 allocation_blocks_names_size; // 76 _DWORD
+        struct {
+            uint32 uncompressed_size; // 0 _DWORD
+            uint32 data_ptr; // overwrite; 823E73A8
+            uint32 data_overlap; // overwrite
+            uint32 data_size; // overwrite
+            uint32 compressed_size; // 16 _DWORD
+        } tables_info[2]; // size: 20, length always 2: 823E7658
+    }
+} header; // assetFile header;
+
+typedef struct {
+    if (header.version >= VersionFromString("07.08.06.0036")) {
+        AllocationBlockInfo allocation_blocks_info[header.allocation_blocks_length]<optimize=false>;
+        uint8 allocation_blocks_names[header.allocation_blocks_names_size];
+    }
+    uint32 assets_names_size <bgcolor=cLtYellow>;
+    uint32 assets_names_offsets[header.assets_length] <bgcolor=cLtYellow>; // _DWORD; ordered by asset index
+    uint8 assets_names[assets_names_size] <bgcolor=cLtYellow>; // driver.anim.bin
+    uint32 unk_names_size <bgcolor=cLtYellow>;
+    if (unk_names_size > 0) {
+        // count? offsets?
+        uint8 unk_names[unk_names_size] <bgcolor=cLtYellow>; // driver.anim.bin.adb
+    }
+    struct {
+        uint32 asset_index; // 0 _DWORD
+        uint32 asset_offset; // 4 _DWORD
+        uint32 asset_size; // 8 _DWORD
+        uint8 allocation_block_index; // 12 _BYTE; real_allocation_block_index + 1
+        uint8 alignment; // same as allocatin_block.alignment
+    } sections_info[header.sections_length] <bgcolor=cLtYellow>;
+} Table0;
+
+typedef struct {
+    if (header.unk_1.a_length > 0) {
+        struct Unknown1(HeaderUnknown1 &unk) {
+            struct {
+                uint32 section_index; // 0 _DWORD
+                uint32 sub_array_length; // 4 _DWORD
+                uint32 sub_sub_array_length; // 8 _DWORD
+                uint32 sub_sub_array_var_size; // 12 _DWORD; 1, 2, 4, 8
+                uint32 sub_sub_array_element_size; // 16 _DWORD; sub_sub_array_length * sub_sub_array_element_size
+            } unk_1_a[unk.a_length];
+            uint32 unk_1_a_offsets[unk.a_offsets_length]; // _DWORD
+        } unk_1_a(header.unk_1);
+    }
+    if (header.unk_2.a_length > 0) {
+        Unknown1 unk_2_a(header.unk_2);
+    }
+    if (header.unk_1.b_length > 0) {
+        struct Unknown2(HeaderUnknown1 &unk) {
+            local uint32 headers_length = unk.b_length;
+            struct {
+                uint32 source_section_index; // 0 _DWORD
+                uint32 destination_section_index; // 4 _DWORD
+                uint32 offsets_length; // 8 _DWORD
+            } headers[unk.b_length];
+            uint32 offsets[unk.b_offsets_length]; // _DWORD
+        } unk_1_b(header.unk_1);
+    }
+    if (header.unk_2.b_length > 0) {
+        Unknown2 unk_2_b(header.unk_2);
+    }
+} Table1;
+
+if (header.version >= VersionFromString("07.08.06.0036")) {
+    struct {
+        struct {
+            union {
+                Table0 st;
+                uint8 data[header.tables_info[0].uncompressed_size];
+            } table_0;
+        
+            union {
+                Table1 st;
+                uint8 data[header.tables_info[1].uncompressed_size];
+            } table_1;
+        } st;
+    } info;
+}
+
+// .data - virtual memory
+// .gpu - phsyical
+// .gpucached - phsyical cached
+
+local uint32 allocation_blocks_addresses[header.allocation_blocks_length];
+
+local uint32 address = FTell();
+local int i;
+for (i = 0; i < header.allocation_blocks_length; i++) {
+    allocation_blocks_addresses[i] = address;
+    if (header.version < VersionFromString("07.08.06.0036")) {
+        address += header.allocation_blocks_info[i].uncompressed_size;
+    } else {
+        address += info.st.table_0.st.allocation_blocks_info[i].uncompressed_size;
+    }
+}
+
+local uint32 data_allocation_block_index = 0;
+if (header.version < VersionFromString("07.08.06.0036")) {
+    for (i = 1; i < header.allocation_blocks_length; i++) {
+        if (header.allocation_blocks_info[i].name == ".data") {
+            data_allocation_block_index = i;
+            break;
+        }
+    }
+} else {
+    for (i = 1; i < header.allocation_blocks_length; i++) {
+        local char name_tmp[6];
+        Memcpy(name_tmp, info.st.table_0.st.allocation_blocks_names, 6, 0, info.st.table_0.st.allocation_blocks_info[i].name_offset);
+        if (name_tmp == ".data") {
+            data_allocation_block_index = i;
+            break;
+        }
+    }
+}
+
+if (header.version < VersionFromString("07.08.06.0036")) {
+    FSeek(allocation_blocks_addresses[data_allocation_block_index] + header.data_allocation_block_size);
+    union {
+        struct {
+            struct {
+                Table0 st;
+            } table_0;
+        
+            struct {
+                Table1 st;
+            } table_1;
+            
+            // guessed. may be part of table_1
+            if (header.info_unk0_length > 0) {
+                // unk3={{2,3}}
+                // unk3={{2,1},{4,5}}
+                // unk3={{2,1},{4,7}}
+                struct {
+                    uint32 unk; // section index + 1
+                    uint32 unk; // section index + 1
+                } unk0[header.info_unk0_length];
+            }
+            if (header.info_unk1_length > 0) {
+                struct {
+                    uint32 unk;
+                    uint32 unk;
+                    uint8 unk1[8];
+                } unk1[header.info_unk1_length];
+            }
+        } st;
+        uint8 data[header.allocation_blocks_info[data_allocation_block_index].uncompressed_size - header.data_allocation_block_size];
+    } info;
+}
+
+for (i = 0; i < header.allocation_blocks_length; i++) {
+    FSeek(allocation_blocks_addresses[i]);
+    struct {
+        if (header.version < VersionFromString("07.08.06.0036")) {
+            if (header.allocation_blocks_info[i].name == ".data") {
+                uint8 data[header.data_allocation_block_size]; // 83A4F488
+            } else {
+                uint8 data[header.allocation_blocks_info[i].uncompressed_size];
+            }
+        } else {
+            uint8 data[info.st.table_0.st.allocation_blocks_info[i].uncompressed_size];
+        }
+    } allocation_blocks;
+}
+
+local uint32 section_index, allocation_block_index, section_offset, size;
+for (i = 0; i < header.sections_length; i++) {
+    allocation_block_index = info.st.table_0.st.sections_info[i].allocation_block_index - 1;
+    section_offset = info.st.table_0.st.sections_info[i].asset_offset;
+    FSeek(allocation_blocks_addresses[allocation_block_index] + section_offset);
+    size = info.st.table_0.st.sections_info[i].asset_size;
+    struct {
+        uint8 data[size];
+    } section_data;
+    //Printf("%d %d %4d %4d\n", info.st.table_0.st.sections_info[i].asset_index, allocation_block_index, section_offset, size);
+}
+
+local struct {
+    uint32 src;
+    uint32 dst;
+} fixups[header.unk_1.b_offsets_length + header.unk_2.b_offsets_length];
+// TODO: replace with map[16777216/4] = dst; map[src(FTell()) / 4]; max file size = 16777216
+// try .pre_00.rmb first. does it increase performance?
+
+// TODO: mark all pointers with color. use different color for unk_1 and unk_2
+// green "typedef"
+// blue "float"
+// red "this"
+
+void CalcPointersFixups(Unknown2 &unk, uint32 base) {
+    local int i, j, k = 0;
+    local uint32 src_section_index, src_allocation_block_index, src_section_offset, src_asset_index, src_base, src_address;
+    local uint32 dst_section_index, dst_allocation_block_index, dst_section_offset, dst_asset_index, dst_base;
+    local int index;
+    for (i = 0; i < unk.headers_length; i++) {
+        src_section_index = unk.headers[i].source_section_index - 1;
+        dst_section_index = unk.headers[i].destination_section_index - 1;
+        src_allocation_block_index = info.st.table_0.st.sections_info[src_section_index].allocation_block_index - 1;
+        dst_allocation_block_index = info.st.table_0.st.sections_info[dst_section_index].allocation_block_index - 1;
+        src_section_offset = info.st.table_0.st.sections_info[src_section_index].asset_offset;
+        dst_section_offset = info.st.table_0.st.sections_info[dst_section_index].asset_offset;
+        //src_asset_index = info.st.table_0.st.sections_info[section_index].asset_index - 1;
+        //dst_asset_index = info.st.table_0.st.sections_info[dst_section_index].asset_index - 1;
+        src_base = allocation_blocks_addresses[src_allocation_block_index] + src_section_offset;
+        dst_base = allocation_blocks_addresses[dst_allocation_block_index] + dst_section_offset;
+        for (j = 0; j < unk.headers[i].offsets_length; j++) {
+            src_address = src_base + unk.offsets[k];
+            FSeek(src_address);
+            index = base + k;
+            if (index < header.unk_1.b_offsets_length) {
+                uint32 value <bgcolor=cLtGreen>; // _DWORD; address in destination_section_index
+            } else {
+                uint32 value <bgcolor=cLtBlue>;
+            }
+            fixups[index].src = src_address;
+            fixups[index].dst = dst_base;
+            k++;
+            //Printf("%d %d %d %4d, %d %d %d %4d\n", section_index, src_allocation_block_index, src_asset_index, offset, dst_section_index, dst_allocation_block_index, dst_asset_index, value);
+            //Printf("%d %d\n", src_address, dst_base + value);
+            //Printf("[%d, %d],\n", src_address, dst_base + value);
+        }
+    }
+}
+
+FSeek(0);
+struct {
+    // TODO: 1st block. it's empty for FM2 testtrackinfieldout.00217.rmb.bin
+    if (header.unk_1.b_offsets_length > 0) {
+        CalcPointersFixups(info.st.table_1.st.unk_1_b, 0);
+    }
+    if (header.unk_2.b_offsets_length > 0) {
+        CalcPointersFixups(info.st.table_1.st.unk_2_b, header.unk_1.b_offsets_length);
+    }
+    FSeek(1); // empty structure warning workaround
+} pointers <hidden=true>; // TODO: remove wrapper struct and replace pointer struct name with "_"
+
+//return;
+
+typedef struct {
+    local int64 src_address = FTell();
+    local int64 dst_address = -1, dst_base = -1;
+    local int i;
+    for (i = 0; i < header.unk_1.b_offsets_length + header.unk_2.b_offsets_length; i++) {
+        //Printf("%d %d %d\n", i, fixups[i].src, offset.address);
+        if (fixups[i].src == src_address) {
+            dst_base = fixups[i].dst;
+            break;
+        }
+    }
+
+    // mark as visited
+    if (i < header.unk_1.b_offsets_length) {
+        uint32 value <bgcolor=cLtGreen, fgcolor=cLtRed>;
+    } else {
+        uint32 value <bgcolor=cLtBlue, fgcolor=cLtRed>;
+    }
+
+    if (dst_base == -1 && value != 0) {
+        Printf("Error: Fixup for pointer 0x%08X was not found.\n", src_address);
+    }
+    if (dst_base != -1) {
+        dst_address = dst_base + value;
+    }
+} Pointer <read=dst_address, write=0>;
+int IsValidPointer(Pointer &pointer) {
+    if (pointer.dst_address == -1) {
+        return 0;
+    }
+    return 1;
+}
+void Seek(Pointer &pointer) {
+    if (pointer.dst_address == -1) {
+        Printf("Error: Fixup for pointer 0x%08X was not found.\n", pointer.src_address);
+        Exit(-1);
+    }
+    FSeek(pointer.dst_address);
+}
+
+typedef enum {
+    D3DRS_CULLMODE = 56,
+    D3DRS_PRIMITIVERESETENABLE = 328, // value is bool
+    D3DRS_ALPHATOMASKENABLE = 336, // value is bool
+    D3DRS_ALPHATOMASKOFFSETS = 340 // value is uint8? if value > 0xFF: error
+} D3DRENDERSTATETYPE;
+
+typedef enum {
+    GPUENDIAN_NONE = 0,
+    GPUENDIAN_8IN16 = 1,
+    GPUENDIAN_8IN32 = 2,
+    GPUENDIAN_16IN32 = 3
+} GPUENDIAN;
+
+typedef struct {
+    // asset callbacks registered before file open. file path dependent
+    // detected by strcmp asset ptr with each registered type one by one
+    local char t[] = ReadString(FTell(), 12); // 12 - length of longest type
+    if (t != "rendergraph") {
+        return;
+    }
+    struct {
+        union {
+            struct {
+                char type[];
+                char version[];
+            } st;
+            uint8 u8[26];
+        } type_and_version <bgcolor=cLtYellow>;
+        
+        // rendergraph (scenegraph) read: 839DF198
+        uint8 gap1A[2];
+        uint32 unk1_length <bgcolor=cLtYellow>; // 28 _DWORD; length of dword7C and dword118
+        Pointer symbol_table_ptr; // 32 _DWORD; access: 839E98D8
+        uint8 gap24[4];
+        uint32 table_ptr; // ?, 839E4910, 833A94E4, 839DF69C
+        uint32 dword2C_ptr; // 40 _DWORD
+        uint32 dword30_ptr; // 48 _DWORD
+        //uint8 gap34[64]; // float[16]
+        float float34; // radius?
+        float bounds[6]; // x_min, x_max, y_min, ...?; origin?
+        struct {
+            float r[3];
+        } transform[3];
+        uint32 visibility_ptr; // 116 _DWORD; ptr; 839E88B8
+        uint32 dword78_ptr; // 120 _DWORD
+        Pointer unk1_a_ptr; // ptr to array, element size: 4
+        uint8 gap80[16];
+        uint32 dword90; // 144; access: 839E5FF0
+        uint8 gap94[64];
+        uint32 dwordD4; // 212
+        uint8 gapD8[4];
+        uint32 texanim; // 220; 839E0830
+        uint8 gapE0[12];
+        Pointer command_stream_ptr; // 236 _DWORD; 839DACFC; header, 83A141CC
+        Pointer instance_manager_ptr; // 240 _DWORD
+        uint32 unk2_ptr; // 244 _DWORD; ptr to array, element size: 4
+        uint32 unk2_length <bgcolor=cLtYellow>; // 248 _DWORD
+        Pointer data_ptr; // 252 _DWORD
+        uint8 gap100[4];
+        uint32 skeleton_ptr; // 260 _DWORD; 839E605C; name: 839E339C
+        uint32 dword108; // bitfield? 0,1,2,3
+        uint8 gap10C[12];
+        Pointer unk1_b_ptr;
+        uint8 gap11C[44];
+    } asset_header;
+    
+    //local uint32 section_index = sections_map[data_allocation_block_index].assets_section_index[0];
+    //local uint32 unk_index = FindUnkIndex(section_index, 252);
+    //local int64 base = allocation_blocks_addresses[data_allocation_block_index] + sections_map[data_allocation_block_index].assets_offsets[0];
+    //FSeek(base + asset_header.data_ptr);
+    Seek(asset_header.data_ptr);
+    struct {
+        Pointer shaders_ptr_ptr;
+        Pointer physical_parts_ptr_ptr;
+        uint32 shaders_length <bgcolor=cLtYellow>;
+    
+        if (shaders_length <= 0) {
+            return;
+        }
+        local int64 p = FTell();
+        Seek(shaders_ptr_ptr);
+        Pointer shaders_ptr[shaders_length] <optimize=false>;
+        Seek(physical_parts_ptr_ptr);
+        Pointer physical_parts_ptr[shaders_length] <optimize=false>;
+        local int i;
+        for (i = 0; i < shaders_length; i++) {
+            Seek(shaders_ptr[i]);
+            struct {
+                Pointer shader_ptr;
+    
+                local int64 p = FTell();
+                Seek(shader_ptr);
+                // "E:\a\dev\XDK\lib\xbox\d3d9d.lib" shader.obj
+                // ExpansionInstaller.xdb
+                struct CPixelShader { // D3D::CPixelShader
+                    struct D3DResource {
+                        uint32 Common;
+                        uint32 ReferenceCount;
+                        uint32 Fence;
+                        uint32 ReadFence;
+                        uint32 Identifier;
+                        uint32 BaseFlush;
+                    } base;
+                    uint32 m_dwPhysical; // D3D::D3DPtr32<void>
+                    uint32 m_Uniqueness;
+                    uint64 m_LastDeviceAndFrameNumberLoaded;
+                    struct UCODE {
+                        local int64 p = FTell();
+                        struct UCODE_HEADER {
+                            struct UCODE_SHADER_COOKIE {
+                                enum <int32> UCODESHADERTYPE {
+                                    UCODESHADERTYPE_PIXEL = 0,
+                                    UCODESHADERTYPE_VERTEX = 1
+                                } Type : 1;
+                                uint32 __padding__ : 3;
+                                uint32 UsesMemexport : 1;
+                                uint32 AutoZ : 1;
+                                uint32 Bound : 1;
+                                uint32 SwapGuard : 1;
+                                enum <int32> UCODESHADERMAGIC {
+                                    UCODESHADERMAGIC_CURRENT = 0x102A11,
+                                } Magic : 24 <format=hex>;
+                            } Cookie;
+                            uint32 CachedSize; // GetFunctionSize()
+                            uint32 PhysicalSize; // GetPhysicalSize()
+                            uint32 DebuggerHintOffset; // used in GetDebuggerHint()
+                            uint32 constantTableOffset;
+                            struct UCODE_PASS_HEADER {
+                                uint32 definitionTableOffset;
+                                uint32 microcodeOffset; // used in GetUCode() and GetPhysicalMicrocodeSize()
+                            } Pass[2]; // if Cookie.AutoZ then 2 else 1; Z pass
+                        } header; // UCodeGetUCodeHeader()
+                        
+                        // goto header.DebuggerHintOffset
+                        struct UCODE_R500_DEBUGGER_HINT_HEADER {
+                            uint32 Timestamp;
+                            uint32 HintSize;
+                            char HintData[HintSize];
+                        } debugger_hint;
+                        local uint32 padding = -FTell() & 0x3;
+                        if (padding > 0) {
+                            uint8 debugger_hint_padding[padding];
+                        }
+                        
+                        // goto header.constantTableOffset
+                        uint32 constant_table_size; // _UCODE_CONSTANT_TABLE
+                        struct _D3DXSHADER_CONSTANTTABLE {
+                            uint32 Size;
+                            uint32 Creator; // offset
+                            uint32 Version;
+                            uint32 Constants;
+                            uint32 ConstantInfo; // offset
+                            uint32 Flags;
+                            uint32 Target; // offset
+
+                            if (Constants > 0) {
+                                struct _D3DXSHADER_CONSTANTINFO {
+                                    uint32 Name; // offset
+                                    uint16 RegisterSet;
+                                    uint16 RegisterIndex;
+                                    uint16 RegisterCount;
+                                    uint16 Flags;
+                                    uint32 TypeInfo; // offset
+                                    uint32 DefaultValue;
+                                } constant_info[Constants];
+                                
+                                struct {
+                                    // goto constant_info.Name
+                                    char name[];
+                                    // goto constant_info.TypeInfo
+                                    struct _D3DXSHADER_TYPEINFO {
+                                        uint16 Class;
+                                        uint16 Type;
+                                        uint16 Rows;
+                                        uint16 Columns;
+                                        uint16 Elements;
+                                        uint16 StructMembers;
+                                        uint32 StructMemberInfo;
+                                    } type_info;
+                                    padding = -FTell() & 0x3;
+                                    if (padding > 0) {
+                                        uint8 constant_info_padding[padding];
+                                    }
+                                } constant_info_ex[Constants] <optimize=false>;
+                            }
+                            
+                            char TargetString[];
+                            char CreatorString[];
+                        } constant_table;
+                        padding = -FTell() & 0x3;
+                        if (padding > 0) {
+                            uint8 constant_table_padding[padding];
+                        }
+                        
+                        // goto header.Pass[0].definitionTableOffset
+                        if (header.Pass[0].definitionTableOffset > 0) {
+                            struct _UCODE_DEFINITION_TABLE {
+                                uint64 u64BitAluDirtyFlags;
+                                uint64 u64BitFlowDirtyFlags;
+                                uint32 cbTableSize;
+                                uint32 data[cbTableSize / 4]; // uint16 index + dwordCount?
+                            } definition_table;
+                        }
+                        
+                        // goto header.Pass[0].microcodeOffset
+                        if (header.Cookie.Type == UCODESHADERTYPE_VERTEX) {
+                            struct _UCODE_R500VSUCODE { // or _UCODE_R500PSUCODE
+                                struct _UCODE_R500UCODE_COMMON {
+                                    uint32 PhysicalMicrocodeOffset;
+                                    uint32 PhysicalMicrocodeSize; // GetPhysicalMicrocodeSize()
+                                    struct GPU_PROGRAMCONTROL {
+                                        uint32 VsMaxReg : 6;
+                                        uint32 __padding__ : 2;
+                                        uint32 PsMaxReg : 6;
+                                        uint32 __padding__ : 2;
+                                        uint32 VsResource : 1;
+                                        uint32 PsResource : 1;
+                                        uint32 ParamGen : 1;
+                                        uint32 GenIndexPix : 1;
+                                        uint32 VsExportCount : 4;
+                                        uint32 VsExportMode : 3;
+                                        uint32 PsExportZ : 1;
+                                        uint32 PsExportColorCount : 3;
+                                        uint32 GenIndexVtx : 1;
+                                    } ProgramControl;
+                                    uint32 ContextMisc;
+                                    uint32 ControlFlowConstantMask;
+                                    struct _UCODE_INTERPOLATOR_HEADER {
+                                        uint32 interpolators : 5;
+                                        uint32 interpolants : 5;
+                                        uint32 components : 7;
+                                        uint32 customOrderPS : 1;
+                                        uint32 customOrderVS : 1;
+                                        uint32 __padding__ : 13;
+                                    } interpolatorHeader;
+                                } common; // GetUCode()
+                                uint32 dwVSIndexDeclarationCount;
+                                uint32 dwVSInputDeclarationCount;
+                                uint32 dwVSOutputPatchCount;
+                                struct _UCODE_VSINDEXDECLARATION {
+                                    uint32 index : 4;
+                                    enum _D3DDECLUSAGE {
+                                        D3DDECLUSAGE_POSITION = 0,
+                                        D3DDECLUSAGE_BLENDWEIGHT = 1,
+                                        D3DDECLUSAGE_BLENDINDICES = 2,
+                                        D3DDECLUSAGE_NORMAL = 3,
+                                        D3DDECLUSAGE_PSIZE = 4,
+                                        D3DDECLUSAGE_TEXCOORD = 5,
+                                        D3DDECLUSAGE_TANGENT = 6,
+                                        D3DDECLUSAGE_BINORMAL = 7,
+                                        D3DDECLUSAGE_TESSFACTOR = 8,
+                                        D3DDECLUSAGE_INDEX = 9,
+                                        D3DDECLUSAGE_COLOR = 10,
+                                        D3DDECLUSAGE_FOG = 11,
+                                        D3DDECLUSAGE_DEPTH = 12,
+                                        D3DDECLUSAGE_SAMPLE = 13,
+                                        D3DDECLUSAGE_BARYCENTRIC = 14,
+                                        D3DDECLUSAGE_QUADID = 15
+                                    } usage : 4;
+                                    uint32 reg : 1;
+                                    uint32 componentMask : 4;
+                                    uint32 __padding__ : 19;
+                                } vs_index_declaration[dwVSIndexDeclarationCount];
+                                struct _UCODE_VSINPUTDECLARATION {
+                                    uint32 fetchInstruction : 12;
+                                    _D3DDECLUSAGE usage : 4;
+                                    uint32 index : 4;
+                                    uint32 fetchRun : 2; // 0 - continue, 1 - start, 2 - end, 3 - end (don't move)
+                                    uint32 useTextureCache : 1;
+                                    uint32 __padding__ : 9;
+                                    // D3DXGetShaderInputSemantics: return usage, index
+                                } vs_input_declaration[dwVSInputDeclarationCount];
+                                struct _UCODE_VSOUTPUTDECLARATION {
+                                    uint32 index : 4;
+                                    _D3DDECLUSAGE usage : 4;
+                                    uint32 reg : 4;
+                                    uint32 componentMask : 4;
+                                    uint32 patchTableOffset : 12;
+                                    uint32 __padding__ : 4;
+                                } vs_output_declaration[common.interpolatorHeader.interpolants];
+                                struct _UCODE_VSOUTPUTPATCH {
+                                    uint32 patchAddress : 12;
+                                    uint32 lastEntry : 1;
+                                    uint32 __padding__ : 19;
+                                } vs_output_patch[dwVSOutputPatchCount];
+                            } vertex_shader_ucode;
+                        } else {
+                            uint8 data[header.CachedSize - (FTell() - p)] <bgcolor=cLtYellow>;
+                        }
+                    } m_Function; // GetUCodeHeader()
+                } shader <bgcolor=cLtYellow>; // pShader
+                Seek(physical_parts_ptr[i]);
+                uint8 physical_part[shader.m_Function.header.PhysicalSize] <bgcolor=cLtYellow>; // pPhysicalPart
+                FSeek(p);
+            } shader;
+        }
+        FSeek(p);
+    } register_pixel_shader; // XGRegisterPixelShader
+    struct {
+        Pointer shaders_ptr_ptr;
+        Pointer physical_parts_ptr_ptr;
+        uint32 shaders_length <bgcolor=cLtYellow>;
+    
+        if (shaders_length == 0) {
+            return;
+        }
+        local int64 p = FTell();
+        Seek(shaders_ptr_ptr);
+        Pointer shaders_ptr[shaders_length] <optimize=false>;
+        Seek(physical_parts_ptr_ptr);
+        Pointer physical_parts_ptr[shaders_length] <optimize=false>;
+        local int i;
+        for (i = 0; i < shaders_length; i++) {
+            Seek(shaders_ptr[i]);
+            struct {
+                Pointer shader_ptr;
+    
+                local int64 p = FTell();
+                Seek(shader_ptr);
+                struct CVertexShader {
+                    D3DResource base;
+                    uint64 m_LastDeviceAndFrameNumberLoaded;
+                    uint32 m_dwPhysical; // D3D::D3DPtr32<void>
+                    uint32 m_Uniqueness;
+                    struct PassData {
+                        uint32 m_VertexDeclarationUniqueness;
+                        uint8 gap4[4];
+                        uint8 m_Stride[16];
+                        uint32 m_PatchFence;
+                        struct GPUVERTEX_FETCH_INSTRUCTION {
+                            uint32 Op : 5;
+                            uint32 SrcGPR : 6;
+                            uint32 SrcLoopIndexRelative : 1;
+                            uint32 DestGPR : 6;
+                            uint32 DestLoopIndexRelative : 1;
+                            uint32 FetchValidOnly : 1;
+                            uint32 ConstIndex : 5;
+                            uint32 ConstIndexSelect : 2;
+                            uint32 PrefetchCount : 3;
+                            uint32 SrcSelect : 2;
+                            uint32 SwizzleX : 3;
+                            uint32 SwizzleY : 3;
+                            uint32 SwizzleZ : 3;
+                            uint32 SwizzleW : 3;
+                            uint32 Signed : 1;
+                            uint32 NumFormat : 1;
+                            uint32 __padding__ : 1;
+                            uint32 RoundIndex : 1;
+                            uint32 DataFormat : 6;
+                            uint32 __padding__ : 2;
+                            int32 ExpAdjust : 6;
+                            uint32 MiniFetch : 1;
+                            uint32 Predicated : 1;
+                            uint32 Stride : 8;
+                            int32 Offset : 23;
+                            uint32 PredicationCondition : 1;
+                        } m_OriginalFetchInstructions[32];
+                        uint8 gap19C[4];
+                    } m_Pass[2];
+                    UCODE m_Function;
+                } shader <bgcolor=cLtYellow>; // pShader
+                Seek(physical_parts_ptr[i]);
+                uint8 physical_part[shader.m_Function.header.PhysicalSize] <bgcolor=cLtYellow>; // pPhysicalPart
+                FSeek(p);
+            } shader;
+        }
+        FSeek(p);
+    } register_vertex_shader; // XGRegisterVertexShader
+    struct {
+        Pointer vertex_declarations_ptr_ptr; // result
+        Pointer vertex_elements_ptr_ptr; // input data
+        uint32 length <bgcolor=cLtYellow>;
+    
+        if (length == 0) {
+            return;
+        }
+        local int64 p = FTell();
+        Seek(vertex_declarations_ptr_ptr);
+        Pointer vertex_declarations_ptr[length] <optimize=false>;
+        Seek(vertex_elements_ptr_ptr);
+        Pointer vertex_elements_ptr[length] <optimize=false>;
+        local int i;
+        for (i = 0; i < length; i++) {
+            Seek(vertex_declarations_ptr[i]);
+            /*struct D3D_CVertexDeclaration { // D3D::CVertexDeclaration 
+                D3DResource base;
+                uint32 m_Count;
+                uint32 m_MaxStream;
+                uint8 m_StreamMask[16];
+                uint32 m_Uniqueness;
+                struct D3DVERTEXELEMENT9 {
+                    uint16 Stream;
+                    uint16 Offset;
+                    uint32 Type;
+                    uint8 Method;
+                    uint8 Usage;
+                    uint8 UsageIndex;
+                    uint8 gapB;
+                } m_Element; // m_Element[]
+                uint8 gap34[4];
+            } vertex_declaration; // pVertexDeclaration*/
+            uint32 vertex_declaration_ptr; // CVertexDeclaration *; allocated by process
+        }
+        for (i = 0; i < length; i++) {
+            Seek(vertex_elements_ptr[i]);
+            struct D3DVERTEXELEMENT9 {
+                uint16 Stream; // 255 means D3DDECL_END
+                uint16 Offset;
+                uint32 Type;
+                uint8 Method;
+                uint8 Usage;
+                uint8 UsageIndex;
+                uint8 gapB;
+            } vertex_elements <bgcolor=cLtYellow>; // pVertexElements
+        }
+        FSeek(p);
+    } set_vertex_declaration; // XGSetVertexDeclaration d3d9d.lib shader.obj
+    
+    struct {
+        Pointer vb_arr;
+        // 0 or 4(D3DUSAGE_CPU_CACHED_MEMORY)
+        // 839DEB98; ptr to array of uint8 Usage; allocated by process?
+        uint32 unk <bgcolor=cLtYellow>;
+        uint32 vb_length <bgcolor=cLtYellow>;
+    
+        if (vb_length == 0) {
+            return;
+        }
+        local int64 p = FTell();
+        Seek(vb_arr);
+        struct {
+            Pointer pVertexBuffer;
+            Pointer Offset;
+            uint32 Length <bgcolor=cLtYellow>;
+            
+            local int64 p = FTell();
+            Seek(pVertexBuffer);
+            Pointer vertex_buffer_header_ptr;
+            Seek(vertex_buffer_header_ptr);
+            struct D3DVertexBuffer {
+                D3DResource base;
+                struct GPUVERTEX_FETCH_CONSTANT {
+                    uint32 Type : 2;
+                    uint32 BaseAddress : 30; // == Offset
+                    uint32 Endian : 2;
+                    uint32 Size : 24; // == Length
+                    uint32 AddressClamp : 1;
+                    uint32 __padding__ : 1;
+                    uint32 RequestSize : 2;
+                    uint32 ClampDisable : 2;
+                } Format;
+            } vertex_buffer_header <bgcolor=cLtYellow>; // filled by process
+            Seek(Offset);
+            //Printf("VB %X %d\n", FTell(), Length);
+            uint8 vertex_buffer_data[Length] <bgcolor=cLtYellow>; // VB data
+            FSeek(p);
+        } vb[vb_length] <optimize=false>;
+        FSeek(p);
+    } set_vertex_buffer_header; // xgraphicsd.lib header.obj XGSetVertexBufferHeader
+    struct {
+        Pointer ib_arr;
+        uint32 ib_length <bgcolor=cLtYellow>;
+    
+        if (ib_length == 0) {
+            return;
+        }
+        local int64 p = FTell();
+        Seek(ib_arr);
+        struct {
+            Pointer pIndexBuffer_ptr;
+            Pointer Offset;
+            uint32 Length <bgcolor=cLtYellow>;
+            union {
+                struct D3DINDEXFORMAT { // D3DFORMAT
+                    //D3DFMT_INDEX16 = 1,
+                    //D3DFMT_INDEX32 = 6
+                    GPUENDIAN Endian : 2;
+                    int32 Is32Bits : 1;
+                    uint32 __padding__ : 29;
+                } st;
+                uint32 data;
+            } Format <bgcolor=cLtYellow>;
+            if (Format.data != 1) {
+                Printf("New Format type found.\n");
+                Exit(-1);
+            }
+    
+            local int64 p = FTell();
+            Seek(pIndexBuffer_ptr);
+            uint32 pIndexBuffer; // D3DIndexBuffer *; allocated by process
+            Seek(Offset);
+            //Printf("IB %X %d\n", FTell(), Length / 2);
+            uint8 index_buffer_data[Length] <bgcolor=cLtYellow>; // IB data
+            FSeek(p);
+        } ib[ib_length] <optimize=false>;
+        FSeek(p);
+    } set_index_buffer_header; //XGSetIndexBufferHeader
+    
+    // 839DEDE0
+    Seek(asset_header.instance_manager_ptr);
+    struct {
+        Pointer unk_ptr;
+        uint32 length <bgcolor=cLtYellow>; // 4 _DWORD
+    
+        // another pointers fixup mechanism? sub_83A3CE28
+        uint32 unk1_ptr <bgcolor=cLtYellow>; // 8 _DWORD; ptr to array of struct{uint32[4]}
+        uint32 unk1_length <bgcolor=cLtYellow>; // 12 _DWORD
+    
+        local int64 p = FTell();
+        Seek(unk_ptr);
+        // TODO: loop
+        Pointer instance_manager_ptr; // 0 _DWORD
+        Pointer memory_type_ptr; // 4 _DWORD
+        Seek(instance_manager_ptr);
+        struct {
+            uint32 size <bgcolor=cLtYellow>; // instancemgrdbGetInstanceSize()
+            uint32 alignment <bgcolor=cLtYellow>;
+            Pointer data_ptr; // memcpy
+            uint32 to_fixup <bgcolor=cLtYellow>;
+            uint32 offsets_length <bgcolor=cLtYellow>;
+            uint32 base_address <bgcolor=cLtYellow>; // assigned by process
+            if (offsets_length > 0) {
+                struct {
+                    uint32 source;
+                    uint32 destination;
+                    // fixup pointers
+                    // if to_fixup:
+                    //   *(base_address + source) = base_address + destination
+                } offsets[offsets_length] <bgcolor=cLtYellow>;
+            }
+            // functions->vmemAlloc(size, alignment)
+        } instance_manager;
+        Seek(instance_manager.data_ptr);
+        uint8 data[instance_manager.size] <bgcolor=cLtYellow>;
+        Seek(memory_type_ptr);
+        char memory_type[] <bgcolor=cLtYellow>; // ".data", ".gpu", ".gpucached"
+        FSeek(p);
+    } dbmgr; // dbmgr
+    
+    // shaderCommandStreamCommands
+    Seek(asset_header.command_stream_ptr);
+    struct {
+        Pointer commands_ptr; // 0 _DWORD; commandStream
+        // constants or variables?; write to dword_84C0D748
+        // access: 83A13900
+        Pointer global_dword4_ptr; // 4 _DWORD; 839DACB0; array of pointers
+        uint32 symbol_table_ptr; // 8 ptr
+        uint32 dwordC; // 12 _DWORD
+        uint32 unk4; // 16 ptr to array of unk4_length, element size: 16
+        Pointer name_ptr;
+        uint8 gap18[8]; // dword1C is global_dword4 length?
+        uint8 byte20; // 32 _BYTE; set 3
+        uint8 byte21; // 33 _BYTE; set 0
+        uint16 unk4_length; // 34
+        local int64 p = FTell();
+        Seek(commands_ptr);
+        struct {
+            //local int h = 0;
+            do {
+                struct {
+                    uint16 size; // 0
+                    uint8 opcode; // 2
+                    //if (opcode == 5 || opcode > 48 || opcode == 45) {
+                    //    Printf("1\n");
+                    //}
+                    // 0x01 - D3DDevice_DrawIndexedVertices
+                    // 0x02 - D3DDevice_SetPixelShader, ptr to CPixelShader
+                    // 0x2E - D3DDevice_SetVertexShader, ptr to CVertexShader
+                    //   stride, vertex buffer size
+                    // 0x1D 83A147AC
+                    // opcode switch: 839DCD78
+                    uint8 gap3;
+                    //Printf("%d %d %02X\n", FTell() - 4, h, opcode);
+                    //h++;
+                    // data
+                    switch (opcode) {
+                    case 0x1:
+                        // set index buffer
+                        enum D3DPRIMITIVETYPE {
+                            D3DPT_TRIANGLELIST = 4
+                        } PrimitiveType;
+                        uint32 IndexCount;
+                        Pointer pIndexData; // D3DIndexBuffer *; allocated by process
+                        // D3DDevice::SetIndices(pIndexData)
+                        // D3DDevice::DrawIndexedVertices(PrimitiveType, 0, 0, IndexCount)
+                        break;
+                    case 0x2:
+                        Pointer physical_part_ptr; // D3D::CPixelShader *
+                        // D3DDevice::SetPixelShader(physical_part_ptr)
+                        break;
+                    case 0x3:
+                        uint8 gap0[4];
+                        uint16 StartRegister;
+                        uint16 Vector4fCount;
+                        struct {
+                            float floats[4];
+                        } pConstantData[Vector4fCount];
+                        // D3DDevice::SetVertexShaderConstantF(StartRegister, pConstantData, Vector4fCount)
+                        break;
+                    case 0x6:
+                        uint8 gap0[4];
+                        uint16 StartRegister;
+                        uint16 Vector4fCount;
+                        struct {
+                            float floats[4];
+                        } pConstantData[Vector4fCount];
+                        // D3DDevice::SetPixelShaderConstantF(StartRegister, pConstantData, Vector4fCount)
+                        break;
+                    case 0xC:
+                        D3DRENDERSTATETYPE state;
+                        switch (state) {
+                        case D3DRS_PRIMITIVERESETENABLE:
+                        case D3DRS_ALPHATOMASKENABLE:
+                            int32 value; // bool
+                            break;
+                        case D3DRS_CULLMODE:
+                            enum D3DCULL {
+                                D3DCULL_NONE = 0x0
+                            } value;
+                            break;
+                        default:
+                            uint32 value;
+                            break;
+                        }
+                        // D3DDevice::SetRenderState(state, value)
+                        break;
+                    case 0xD:
+                        D3DRENDERSTATETYPE state;
+                        uint32 value; // ptr to value; or index in a5 array
+                        // D3DDevice::SetRenderState(state, value)
+                        break;
+                    case 0x15:
+                        // if statement?
+                        Pointer stream_pos_ptr;
+                        uint32 mask;
+                        uint8 gapC[4];
+                        // if ((a6 & mask) != a6) goto stream_pos_ptr
+                        break;
+                    case 0x16:
+                        // switch(globstate->shaderstyle) statement
+                        uint8 styles_length; // name: style
+                        uint8 gap1[3];
+                        Pointer styles_ptrs[styles_length] <optimize=false>;
+                        // goto styles_ptrs[globstate->shaderstyle];
+                        break;
+                    case 0x19:
+                        // goto
+                        Pointer ptr;
+                        break;
+                    case 0x1A:
+                        // if statement which includes all below if conditions? it seems no
+                        uint32 mask;
+                        uint8 gap8[4];
+                        // if ((a6 & mask) != a6)) break stream
+                        break;
+                    case 0x20:
+                        uint32 unk; // 4
+                        uint8 gap5[size - 8];
+                        // testtrackinfieldout.sky.rmb.bin
+                        //Printf("opcode 0x20\n");
+                        break;
+                    case 0x2A:
+                        // D3DDevice::SetPixelShader(NULL)
+                        uint8 gap0[4];
+                        break;
+                    case 0x2D:
+                        // set pixel shader parameters
+                        uint32 dword0; // a2 + dword0
+                        uint16 unk0_length;
+                        uint16 unk1_length;
+                        struct OpCode2D_Unk {
+                            uint32 palette_index; // texture index?
+                            uint16 sampler_index;
+                            uint16 global_variable_index;
+                            
+                            local int64 p = FTell();
+                            Seek(global_dword4_ptr); // Seek(global_dword4_ptr[global_variable_index])
+                            FSkip(4 * global_variable_index);
+                            Pointer value_ptr;
+                            Seek(value_ptr);
+                            struct {
+                                Pointer unk0_ptr;
+                                uint32 unk0_length;
+                                // goto unk0_ptr
+                                struct {
+                                    enum D3DSAMPLERSTATETYPE {
+                                        D3DSAMP_ADDRESSU = 0,
+                                        D3DSAMP_ADDRESSV = 4,
+                                        D3DSAMP_ADDRESSW = 8,
+                                        D3DSAMP_MAGFILTER = 16,
+                                        D3DSAMP_MINFILTER = 20,
+                                        D3DSAMP_MIPFILTER = 24,
+                                        D3DSAMP_MIPMAPLODBIAS = 28,
+                                        D3DSAMP_MAXMIPLEVEL = 32,
+                                        D3DSAMP_MAXANISOTROPY = 36
+                                    } Type;
+                                    switch (Type) {
+                                    case D3DSAMP_ADDRESSU:
+                                    case D3DSAMP_ADDRESSV:
+                                    case D3DSAMP_ADDRESSW:
+                                        enum D3DTEXTUREADDRESS {
+                                            D3DTADDRESS_WRAP = 0,
+                                            D3DTADDRESS_CLAMP = 2
+                                        } Value;
+                                        break;
+                                    case D3DSAMP_MAGFILTER:
+                                    case D3DSAMP_MINFILTER:
+                                    case D3DSAMP_MIPFILTER:
+                                        enum D3DTEXTUREFILTERTYPE {
+                                            D3DTEXF_LINEAR = 1
+                                        } Value;
+                                        break;
+                                    case D3DSAMP_MIPMAPLODBIAS:
+                                        float Value; // FLOAT
+                                        break;
+                                    case D3DSAMP_MAXMIPLEVEL:
+                                        uint32 Value; // LOD index, int32 or uint32?
+                                        break;
+                                    case D3DSAMP_MAXANISOTROPY:
+                                        int32 Value; // DWORD
+                                        break;
+                                    default:
+                                        uint8 Value[4];
+                                        break;
+                                    }
+                                    // D3DDevice_SetSamplerState(sampler_index, Type, Value)
+                                } unk0[unk0_length] <optimize=false>;
+                                //D3DDevice_SetTexture(sampler_index, dword_84C0D74C[palette_index])
+                            } value <bgcolor=cLtYellow>;
+                            FSeek(p);
+                        } unk0[unk0_length] <optimize=false>;
+                        if (unk1_length > 0) {
+                            OpCode2D_Unk unk1[unk1_length]; // set all sampler types to same value
+                            //D3DDevice_SetPixelShaderConstantF(constSamplersStartRegister + sampler_index, UVAtlasPalette[palette_index], 1)
+                        }
+                        
+                        break;
+                    case 0x2E:
+                        // set vertex shader
+                        Pointer streams_vb_indexes_ptr; // dword0; element: _DWORD
+                        Pointer streams_vb_infos_ptr; // dword4; element size: 16
+                        uint16 streams_length;
+                        uint8 gapA[2];
+                        uint32 vertex_declaration_ptr; // D3D:CVertexDeclaration *
+                        Pointer vertex_shader_ptr; // D3D::CVertexShader *
+                        if (streams_length > 1) {
+                            Exit(-1); // research streams_vb_infos
+                        }
+                        
+                        // when vertex buffer is made of several buffers, like in .modelbin files?
+                        if (streams_length > 0) {
+                            //local int64 p = FTell();
+                            //Seek(streams_vb_indexes_ptr);
+                            uint32 streams_vb_indexes[streams_length];
+                            local int64 p = FTell();
+                            Seek(streams_vb_infos_ptr);
+                            // goto streams_vb_infos_ptr + 16 * streams_vb_indexes[i]
+                            struct {
+                                uint32 stride;
+                                Pointer header_ptr; // D3DVertexBuffer *; filled by process (XGSetVertexBufferHeader)
+                                Pointer data_ptr;
+                                uint32 size;
+                            } streams_vb_infos[streams_length] <optimize=false>;
+                            // vb_info = streams_vb_infos[streams_vb_indexes[i]]
+                            // D3DDevice::SetStreamSource(i, vb_info.header_ptr, 0, vb_info.stride)
+                            FSeek(p);
+                        }
+                        // D3DDevice::SetVertexDeclaration(vertex_declaration_ptr)
+                        // D3DDevice::SetVertexShader(vertex_shader_ptr)
+                        break;
+                    default:
+                        if (size > 4) {
+                            uint8 gap4[size - 4];
+                        }
+                        break;
+                    }
+                } cmd <read=Str("%02X", opcode), optimize=false>;
+            } while (cmd.opcode != 0x1D);
+        } commands;
+        Seek(name_ptr);
+        char name[] <bgcolor=cLtYellow>;
+        FSeek(p);
+    } command_stream;
+    
+    // symbol table
+    // used by command_stream
+    Seek(asset_header.symbol_table_ptr);
+    struct {
+        uint32 symbols_length; // 0 _DWORD; numSymbols
+        // 839E98D8
+        Pointer symbols_ptr; // index = (theSymbol - dword4_ptr) / 12; ptr to array, element size: 12
+        Pointer names_maps_ptr[2] <optimize=false> ;
+    
+        local int64 p = FTell();
+        Seek(symbols_ptr);
+        struct {
+            Pointer name0_ptr; // type 1; usually used this
+            Pointer name1_ptr; // type 0
+            Pointer data_ptr; // 8 _DWORD; 83A19B50
+    
+            local int64 p = FTell();
+            Seek(name0_ptr);
+            char name0[] <bgcolor=cLtYellow>;
+            Seek(name1_ptr);
+            char name1[] <bgcolor=cLtYellow>;
+            if (IsValidPointer(data_ptr)) {
+                Seek(data_ptr);
+                struct {
+                    // guessed
+                    // opcode dependent
+                    // 839E01C8 float
+                    Pointer unk_ptr;
+                    uint32 unk_length;
+        
+                    local int64 p = FTell();
+                    Seek(unk_ptr);
+                    struct {
+                        uint32 unk1;
+                        Pointer unk2_ptr;
+                    } unk[unk_length] <optimize=false>;
+                    FSeek(p);
+                } data;
+            }
+            FSeek(p);
+        } symbols[symbols_length] <optimize=false>; // theSymbol
+    
+        local int i; // name type
+        for (i = 0; i < 2; i++) {
+            Seek(names_maps_ptr[i]);
+            struct {
+                struct {
+                    // key
+                    uint32 hash <format=hex, bgcolor=cLtYellow>; // 0 _DWORD; 32-bit PJW hash
+                    uint32 dword4 <bgcolor=cLtYellow>; // 4 _DWORD; always 0
+                    // value
+                    Pointer symbol_ptr; // 8 _DWORD
+                } pairs[symbols_length] <optimize=false>;
+            } names_maps; // 2
+        }
+        FSeek(p);
+    } symbol_table;
+    
+    if (asset_header.unk1_length > 0) {
+        Seek(asset_header.unk1_a_ptr);
+        uint32 unk1_a[asset_header.unk1_length];
+        Seek(asset_header.unk1_b_ptr);
+        uint32 unk1_b[asset_header.unk1_length];
+    }
+} RenderGraphAsset;
+
+
+typedef struct {
+    uint8 gap0[24];
+    union {
+        struct D3DFORMAT {
+            // D3DFMT_X8R8G8B8 = 673710470
+            // D3DFMT_DXT1 = 438305106
+            // D3DFMT_DXT5 = 438305108
+            // D3DFMT_DXT5A = 438305147
+            // D3DFMT_DXN = 438305137
+            enum {
+                GPUTEXTUREFORMAT_8_8_8_8 = 6,
+                GPUTEXTUREFORMAT_DXT1 = 18, // BC1
+                GPUTEXTUREFORMAT_DXT4_5 = 20, // BC3
+                GPUTEXTUREFORMAT_DXN = 49, // BC5 (normal map)
+                GPUTEXTUREFORMAT_DXT5A = 59 // BC4
+            } TextureFormat : 6;
+            GPUENDIAN Endian : 2;
+            int32 Tiled : 1; // FALSE = 0, TRUE = 1
+            enum GPUSIGN {
+                GPUSIGN_UNSIGNED = 0,
+                GPUSIGN_SIGNED = 1,
+                GPUSIGN_BIAS = 2,
+                GPUSIGN_GAMMA = 3
+            } TextureSignX : 2;
+            GPUSIGN TextureSignY : 2;
+            GPUSIGN TextureSignZ : 2;
+            GPUSIGN TextureSignW : 2;
+            enum GPUNUMFORMAT {
+                GPUNUMFORMAT_FRACTION = 0,
+                GPUNUMFORMAT_INTEGER = 1
+            } NumFormat : 1; // GPUNUMFORMAT_FRACTION
+            enum GPUSWIZZLE {
+                GPUSWIZZLE_X = 0,
+                GPUSWIZZLE_Y = 1,
+                GPUSWIZZLE_Z = 2,
+                GPUSWIZZLE_W = 3,
+                GPUSWIZZLE_0 = 4,
+                GPUSWIZZLE_1 = 5,
+                GPUSWIZZLE_KEEP = 7
+            } SwizzleX : 3;
+            GPUSWIZZLE SwizzleY : 3;
+            GPUSWIZZLE SwizzleZ : 3;
+            GPUSWIZZLE SwizzleW : 3;
+            uint32 __padding__ : 2;
+        } st;
+        uint32 value;
+    } format; // 24 _DWORD Format
+    enum {
+        TEX_DIRECT = 0, // D3DRTYPE_TEXTURE
+        TEX_CUBE = 2, // D3DRTYPE_CUBETEXTURE
+        // ? = 3, // D3DRTYPE_VOLUMETEXTURE
+        TEX_ARRAY = 4, // D3DRTYPE_TEXTURE
+        TEX_HARDWARE_ARRAY = 5, // D3DRTYPE_ARRAYTEXTURE
+        TEX_PTC = 6
+    } type; // 28 _DWORD; "texbase->type == TEX_DIRECT"
+    uint8 gap20[4];
+    uint16 width; // 36 _WORD Width
+    uint16 height; // 38 _WORD Height
+    Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
+    uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
+    uint8 levels; // 48 _BYTE Levels
+    uint8 gap31[3];
+    Pointer pTexture_ptr; // 52 _DWORD pTexture; filled by process
+    uint32 depth; // 56 _DWORD Depth; or array length?
+    uint8 gap3C[8];
+    uint32 dword44; // 68 _DWORD
+    uint32 dword48; // 72 _DWORD
+    uint32 dword4C; // 76 _DWORD
+
+    uint8 pTexture[36]; // size depends on texture type
+    // calls XGRAPHICS::SetBaseTextureHeader (not D3DDevice_CreateTexture)
+} TextureAsset;
+
+// rendergraph, bfont, vfont, texture, shader, animation
+// 30.06.06.0036 rendergraph
+// 12.07.06.0035 vfont
+// 11.07.06.0035 bfont
+// 04.05.05.0032 texture
+// 00.00.00.0036 animation
+//local uint32 asset_0_address;
+//for (i = 0; i < header.sections_length; i++) {
+//    if (info.st.table_0.st.sections_info[i].allocation_block_index == data_allocation_block_index && info.st.table_0.st.sections_info[i].asset_index == 1) {
+//        asset_0_address = ;
+//        break;
+//    }
+//}
+
+local char asset_name[];
+for (i = 0; i < header.sections_length; i++) {
+    if (info.st.table_0.st.sections_info[i].allocation_block_index - 1 != data_allocation_block_index) {
+        continue;
+    }
+    FSeek(allocation_blocks_addresses[data_allocation_block_index] + info.st.table_0.st.sections_info[i].asset_offset);
+    asset_name = ReadString(startof(info.st.table_0.st.assets_names) + info.st.table_0.st.assets_names_offsets[info.st.table_0.st.sections_info[i].asset_index - 1]);
+    //Printf("%s\n", asset_name);
+    if (RegExMatch(asset_name, ".*\\.rmb\\.bin") == 1) {
+        RenderGraphAsset asset;
+    } else if (RegExMatch(asset_name, "(.*\\\\)?_0x.*\\.bin") == 1) {
+        TextureAsset asset;
+        Printf("%d %d %d(%d) %d %d %d %s\n", info.st.table_0.st.sections_info[i].asset_index - 1, asset.type, asset.format.value, asset.format.st.TextureFormat, asset.width, asset.height, asset.levels, asset_name);
+    }
+}
+// guess
+return;
+
+FSeek(1392);
+Pointer unk1_ptr;
+uint32 unk1_length;
+struct {
+    uint32 unk1;
+    Pointer unk2_ptr;
+} unk1[unk1_length] <optimize=false>;
