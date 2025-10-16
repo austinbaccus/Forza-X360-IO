@@ -177,7 +177,27 @@ class Rendergraph:
 
 class TextureAsset:
     def deserialize(self, stream: BinaryStream):
-        print()
+        stream.skip(24)
+        self.texture_format = stream.read_u32()
+        self.texture_type = stream.read_u32()
+        stream.skip(4)
+        self.width = stream.read_u16()
+        self.height = stream.read_u16()
+        stream.skip(12)
+        self.base_offset_ptr = stream.read_u32() # Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
+        self.mip_offset = stream.read_u32() # uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
+        self.levels = stream.read_u8() # uint8 levels; // 48 _BYTE Levels
+        stream.skip(3) # uint8 gap31[3];
+        self.pTexture_ptr = stream.read_u32() # Pointer pTexture_ptr; // 52 _DWORD pTexture; filled by process
+        self.depth = stream.read_u32() # uint32 depth; // 56 _DWORD Depth; or array length?
+        stream.skip(8) # uint8 gap3C[8];
+        stream.skip(4) # uint32 dword44; // 68 _DWORD
+        stream.skip(4) # uint32 dword48; // 72 _DWORD
+        stream.skip(4) # uint32 dword4C; // 76 _DWORD
+        texture_data_length = 36 # size depends on texture type
+        self.texture_data = [None] * texture_data_length # uint8 pTexture[36];
+        for i in range(texture_data_length):
+            self.texture_data[i] = stream.read_u8()
 
 class CAFF:
     def __init__(self, asset):
