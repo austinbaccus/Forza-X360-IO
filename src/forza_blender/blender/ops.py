@@ -1,4 +1,5 @@
 import bpy # type: ignore
+import math
 from pathlib import Path
 from forza_blender.forza.pvs.pvs_util import BinaryStream
 from forza_blender.forza.pvs.read_pvs import PVS
@@ -6,7 +7,7 @@ from forza_blender.forza.shaders.read_shader import FXLShader
 from mathutils import Matrix # type: ignore
 from bpy.types import Operator # type: ignore
 from bpy.props import StringProperty # type: ignore
-from forza_blender.forza.models.model_util import generate_meshes_from_pvs, generate_meshes_from_pvs_model_instance, get_rmbbin_files, get_shaders
+from forza_blender.forza.models.model_util import generate_meshes_from_pvs, generate_meshes_from_pvs_model_instance, generate_meshes_from_rmbbin, get_rmbbin_files, get_shaders
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blendermesh
 from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_object
@@ -84,10 +85,6 @@ class FORZA_OT_track_import_modal(Operator):
         self.rmbbin_files = get_rmbbin_files(self.path_bin)
         self.pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
         self.shaders: dict[str, FXLShader] = get_shaders(self.path_bin, self.pvs)
-        
-        #for instance_mesh in generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
-        #    _add_mesh_to_scene(context, instance_mesh, path_bin)
-
         self.idx = 0
 
         # Progress bar
@@ -173,7 +170,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_track_import,FORZA_OT_generate_textures,FORZA_OT_track_import_modal)
+classes = (FORZA_OT_track_import,FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_generate_textures,FORZA_OT_track_import_modal)
 
 
 def register():
@@ -183,16 +180,41 @@ def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
 def _import_fm3(context, track_path: Path, path_ribbon: Path):
-    if type(track_path) is not Path: track_path = Path(track_path)
-    if type(path_ribbon) is not Path: path_ribbon = Path(path_ribbon)
-    path_bin: Path = track_path / "bin"
-    path_ribbon_pvs: Path = list(path_ribbon.glob("*.pvs"))[0]
+    path_bin: Path = Path(track_path) / "bin"
+    path_ribbon_pvs: Path = list(Path(path_ribbon).glob("*.pvs"))[0]
 
-    # meshes
-    pvs, pvs_model_instances, models_to_load, model_meshes = _get_meshes_from_track(path_bin, path_ribbon_pvs, context)
+    # get pvs & shaders instances
+    pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
+
+    # figure out which models need to be loaded
+    pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances.extend([model_instance for model_instance in pvs.lone_models_instances])
+    unique_model_indexes = set([model_instance.model_index for model_instance in pvs_model_instances])
+    models_to_load = [(model_index, pvs.models[model_index], F"{model_index:05d}") for model_index in unique_model_indexes]
+    model_meshes: list[list[ForzaMesh] | None] = [None] * len(pvs.models)
+
+    # add the skybox to the list of models to load (if it exists)
+    if pvs.sky_model is not None:
+        pvs.sky_model_instance.model_index = len(model_meshes)
+        pvs_model_instances.append(pvs.sky_model_instance)
+        models_to_load.append((pvs.sky_model_instance.model_index, pvs.sky_model, "sky"))
+        model_meshes.append(None)
+
+    # for each model in models_to_load, load the mesh and add it to model_meshes
+    for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
+        pvs_texture_filenames = [pvs.textures[texture_idx] for texture_idx in pvs_model.textures]
+        # TODO: check if all textures for a track section are being passed to the track subsection
+        path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
+        try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_texture_filenames, shaders)
+        except: print("Problem getting mesh from model index", model_index)
+        msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
+        print(msg); bpy.context.workspace.status_text_set(msg)
 
     master_collection = bpy.data.collections.new("Models")
     model_collections = [None] * len(model_meshes)
+
+    # for each mesh in model_meshes, add it to the scene
     for i, (model_index, _, model_filename) in enumerate(models_to_load):
         if model_meshes[model_index] is None:
             continue
@@ -204,10 +226,13 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         print(f"[{i + 1}/{len(models_to_load)}]")
         bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
 
+    # collections
     root_layer_collection = bpy.context.view_layer.layer_collection
     track_collection = bpy.data.collections.new(pvs.prefix)
     root_layer_collection.collection.children.link(track_collection)
     track_layer_collection = next(layer_collection for layer_collection in root_layer_collection.children if layer_collection.collection == track_collection)
+
+    # generate models from pvs
     for pvs_model_instance in pvs_model_instances:
         if model_collections[pvs_model_instance.model_index] is None:
             continue
@@ -221,6 +246,8 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         collection_instance.matrix_world = m
 
         track_layer_collection.collection.objects.link(collection_instance)
+
+    # collection stuff
     track_layer_collection.collection.children.link(master_collection)
     master_layer_collection = next(layer_collection for layer_collection in track_layer_collection.children if layer_collection.collection == master_collection)
     master_layer_collection.exclude = True
@@ -236,9 +263,6 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
         i = i + 1
         print(f"[{i}/{len(path_textures)}]")
         bpy.context.workspace.status_text_set(f"[{i}/{len(path_textures)}] textures generated")
-
-def _get_meshes_from_track(path_bin: Path, path_ribbon_pvs: Path, context):
-    return generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context)
 
 def _add_mesh_to_scene(context, forza_mesh, path_bin: Path, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
