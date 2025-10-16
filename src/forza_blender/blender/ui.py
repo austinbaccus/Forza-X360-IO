@@ -41,19 +41,6 @@ def _draw_forza_game_picker(context, layout):
     for item in enum_items:
         col.prop_enum(context.scene, "forza_selection", item.identifier)
 
-def _draw_textures_import_box(context, layout):
-    layout.separator()
-    box_textures = layout.box()
-    box_textures.label(text="Track Textures Folder")
-    row2 = box_textures.row(align=True)
-    row2.operator("forza.pick_texture_folder", icon="FILE_FOLDER")
-    folder_texture_path = context.scene.forza_last_texture_folder
-    if folder_texture_path:
-        sub2 = box_textures.row()
-        sub2.prop(context.scene, "forza_last_texture_folder", text="", emboss=False, icon='FILE_FOLDER')
-    else:
-        box_textures.label(text="No texture folder selected", icon='INFO')
-
 def _draw_track_import_box(context, layout):
     layout.separator()
     box_models = layout.box()
