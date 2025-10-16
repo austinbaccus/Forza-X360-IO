@@ -175,50 +175,18 @@ class Rendergraph:
             bpy.context.collection.objects.link(obj)
             # TODO: assign materials
 
-    # def process_mesh(self):
-    #     meshes_indexes = [None] * len(self.index_buffers)
-    #     vertexes_lengths = [None] * len(self.vertex_buffers)
-    #     meshes = [None] * len(self.index_buffers)
-    #     vertexes_positions = [None] * len(self.index_buffers)
-
-    #     j = 0
-    #     for i in range(len(self.index_buffers)):
-    #         index_buffer = self.index_buffers[i]
-    #         meshes_indexes[i] = np.frombuffer(index_buffer, np.dtype(">u2")) # np.uint16
-
-    #         vertexes_length = meshes_indexes[i].max() - meshes_indexes[i].min() + 1
-    #         if meshes_indexes[i].min() == 0:
-    #             vertex_buffer = self.vertex_buffers[j]
-    #             vertexes_lengths[j] = vertexes_length
-    #             j += 1
-    #         else:
-    #             # TODO: replace with continuity check
-    #             if meshes_indexes[i].min() != vertexes_lengths[j - 1]:
-    #                 raise RuntimeError()
-    #             vertexes_lengths[j - 1] += vertexes_length
-    #         meshes[i] = j - 1
-
-    #     for i in range(len(self.vertex_buffers)):
-    #         vertex_buffer = self.vertex_buffers[i]
-    #         if len(vertex_buffer) % vertexes_lengths[i] != 0:
-    #             raise RuntimeError()
-    #         stride = len(vertex_buffer) // vertexes_lengths[i]
-            
-    #         # replace with structured array? np.dtype("(3)>f4, (8)B")
-    #         arr = np.frombuffer(vertex_buffer, np.uint8).reshape(-1, stride)
-    #         vertexes_positions[i] = arr[:, :12].view(np.dtype(">f4")) # np.float32
-
-    #     for i in range(len(self.index_buffers)):
-    #         mesh_vertexes_positions = vertexes_positions[meshes[i]][meshes_indexes[i].min():meshes_indexes[i].max() + 1]
-    #         mesh = bpy.data.meshes.new(name="Mesh")
-    #         mesh.from_pydata(mesh_vertexes_positions, [], (meshes_indexes[i] - meshes_indexes[i].min()).reshape(-1, 3), False)
-    #         mesh.validate()
-    #         obj = bpy.data.objects.new("Mesh", mesh)
-    #         bpy.context.collection.objects.link(obj)
+class TextureAsset:
+    def deserialize(self, stream: BinaryStream):
+        print()
 
 class CAFF:
     def __init__(self, asset):
         self.asset = asset
+
+    def get_image_from_bin(filepath):
+        stream = BinaryStream.from_path(filepath, ">")
+        texture = CAFF.from_stream(stream)
+        return texture
 
     def from_stream(stream: BinaryStream):
         header = Header.from_stream(stream)
@@ -256,38 +224,13 @@ class CAFF:
         unk_1_b.apply(stream, header.allocation_blocks, sections_info)
         unk_2_b.apply(stream, header.allocation_blocks, sections_info)
 
-        #
-        # TODO: find place where it walks through. how does it ignores pool?
+        # get texture from stream
         for section_info in sections_info:
             if section_info.allocation_block_index != data_allocation_block.index:
                 continue
-            # TODO: replace by list of assets? rendergraph is just one of asset types?
-            #   add texture asset support
-            asset = Rendergraph()
+            asset = TextureAsset()
             with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
                 asset.deserialize(stream)
-            # assumption that the model is in the 1st asset
             break
 
         return CAFF(asset)
-
-# # 1 model
-# input_path = R"E:\downloads\FM2\Media\tracks\testtrackinfield\bin\testtrackinfieldout.00217.rmb.bin"
-# # input_path = R"E:\downloads\FM2\Media\tracks\testtrackinfield\bin\testtrackinfieldout.sky.rmb.bin"
-# # input_path = R"E:\downloads\FM2\Media\tracks\testtrackinfield\bin\testtrackinfieldout.00048.rmb.bin"
-# # input_path = R"E:\downloads\FM2\Media\tracks\newyork\bin\newyorkout.00133.rmb.bin"
-# # input_path = R"E:\downloads\FM2\Media\tracks\Sebring\bin\sebringout.01206.rmb.bin" # not fixed bug
-
-# stream = BinaryStream.from_path(input_path, ">")
-
-# model = CAFF.from_stream(stream)
-# model.asset.process_mesh("Mesh")
-
-
-for directory, _, filenames in os.walk(src_path):
-    for filename in filenames:
-        path = os.path.join(directory, filename)
-        print(path)
-        stream = BinaryStream.from_path(path, ">")
-        model = CAFF.from_stream(stream)
-        model.asset.process_mesh(filename[:-8] + "_a")
