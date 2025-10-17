@@ -245,21 +245,27 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     track_layer_collection = next(layer_collection for layer_collection in root_layer_collection.children if layer_collection.collection == track_collection)
 
     # generate models from pvs
+    instances_parent = bpy.data.objects.new("Models Instances", object_data=None)
     for pvs_model_instance in pvs_model_instances:
         if model_collections[pvs_model_instance.model_index] is None:
             continue
         collection_instance = bpy.data.objects.new(model_collections[pvs_model_instance.model_index].name, object_data=None)
         collection_instance.instance_type = "COLLECTION"
         collection_instance.instance_collection = model_collections[pvs_model_instance.model_index]
+        collection_instance.show_instancer_for_viewport = False
+        collection_instance.parent = instances_parent
 
         # convert mesh to blender coordinate system
         m = Matrix(pvs_model_instance.transform)
         m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
-        collection_instance.matrix_world = m
+        # collection_instance.matrix_world = m # no shear support
+        collection_instance.matrix_parent_inverse = m
 
         track_layer_collection.collection.objects.link(collection_instance)
 
     # collection stuff
+    track_layer_collection.collection.objects.link(instances_parent)
+    instances_parent.hide_set(True)
     track_layer_collection.collection.children.link(master_collection)
     master_layer_collection = next(layer_collection for layer_collection in track_layer_collection.children if layer_collection.collection == master_collection)
     master_layer_collection.exclude = True
