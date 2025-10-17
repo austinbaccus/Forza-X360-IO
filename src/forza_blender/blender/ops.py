@@ -116,7 +116,13 @@ class FORZA_OT_generate_bin_textures(Operator):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
             path_bin_textures: Path = list(path_bin.glob("*.bin"))
-            _populate_indexed_bin_textures_from_track(path_bin_textures, Path(context.scene.forza_last_track_folder))
+
+            filtered_path_bin_textures = [
+                f for f in path_bin_textures 
+                if not f.name.endswith('rmb.bin') and not f.name.endswith('stx.bin')
+            ]
+
+            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder))
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -288,15 +294,15 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
     path_bin: Path = Path(track_path) / "bin" / "bin_textures"
     i = 0
     for path_texture in path_bin_textures:
-        if "stx.bin" in path_texture.name:
-            continue
-
         img = CAFF.get_image_from_bin(path_texture.resolve())
 
         image_filename = Path(path_texture).stem + ".dds"
         image_filepath = path_bin / image_filename
-        with open(image_filepath.resolve(), 'wb') as f: 
-            f.write(img)
+        if img is not None:
+            with open(image_filepath.resolve(), 'wb') as f: 
+                f.write(img)
+        else:
+            print("Could not extract texture from .bin")
 
         i = i + 1
         print(f"[{i}/{len(path_bin_textures)}]")

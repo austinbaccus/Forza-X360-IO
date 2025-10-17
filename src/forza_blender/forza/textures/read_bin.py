@@ -206,7 +206,7 @@ class CAFF:
 
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
-        texture = CAFF.from_stream(stream)
+        texture = CAFF.from_stream(stream).asset
         return texture
 
     def from_stream(stream: BinaryStream):
@@ -246,6 +246,7 @@ class CAFF:
         unk_2_b.apply(stream, header.allocation_blocks, sections_info)
 
         # get texture from stream
+        asset = None
         for section_info in sections_info:
             if section_info.allocation_block_index != data_allocation_block.index:
                 continue
@@ -253,5 +254,8 @@ class CAFF:
             with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
                 asset.deserialize(stream)
             break
-
+        
+        if asset is None:
+            return CAFF(None)
+        
         return CAFF(asset)
