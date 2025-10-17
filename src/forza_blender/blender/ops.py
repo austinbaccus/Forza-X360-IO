@@ -220,8 +220,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
         try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_texture_filenames, shaders)
         except: print("Problem getting mesh from model index", model_index)
-        msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
-        print(msg); bpy.context.workspace.status_text_set(msg)
+        if (i + 1) % 100 == 0:
+            msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
+            print(msg); bpy.context.workspace.status_text_set(msg)
 
     master_collection = bpy.data.collections.new("Models")
     model_collections = [None] * len(model_meshes)
@@ -235,8 +236,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
             _add_mesh_to_scene(context, mesh, collection)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
-        print(f"[{i + 1}/{len(models_to_load)}]")
-        bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+        if (i + 1) % 100 == 0:
+            print(f"[{i + 1}/{len(models_to_load)}]")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
 
     # collections
     root_layer_collection = bpy.context.view_layer.layer_collection
@@ -245,21 +247,27 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     track_layer_collection = next(layer_collection for layer_collection in root_layer_collection.children if layer_collection.collection == track_collection)
 
     # generate models from pvs
+    instances_parent = bpy.data.objects.new("Models Instances", object_data=None)
     for pvs_model_instance in pvs_model_instances:
         if model_collections[pvs_model_instance.model_index] is None:
             continue
         collection_instance = bpy.data.objects.new(model_collections[pvs_model_instance.model_index].name, object_data=None)
         collection_instance.instance_type = "COLLECTION"
         collection_instance.instance_collection = model_collections[pvs_model_instance.model_index]
+        collection_instance.show_instancer_for_viewport = False
+        collection_instance.parent = instances_parent
 
         # convert mesh to blender coordinate system
         m = Matrix(pvs_model_instance.transform)
         m = Matrix(((1, 0, 0, 0), (0, 0, 1, 0), (0, 1, 0, 0), (0, 0, 0, 1))) @ m # Forza->Blender coordinate system
-        collection_instance.matrix_world = m
+        # collection_instance.matrix_world = m # no shear support
+        collection_instance.matrix_parent_inverse = m
 
         track_layer_collection.collection.objects.link(collection_instance)
 
     # collection stuff
+    track_layer_collection.collection.objects.link(instances_parent)
+    instances_parent.hide_set(True)
     track_layer_collection.collection.children.link(master_collection)
     master_layer_collection = next(layer_collection for layer_collection in track_layer_collection.children if layer_collection.collection == master_collection)
     master_layer_collection.exclude = True

@@ -52,8 +52,9 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
         except:
             print("Problem getting mesh from model index", model_index)
 
-        print(f"[{i + 1}/{len(models_to_load)}] meshes imported")
-        bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+        if (i + 1) % 100 == 0:
+            print(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
 
     return pvs, pvs_model_instances, models_to_load, model_meshes
 
