@@ -220,8 +220,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
         try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_texture_filenames, shaders)
         except: print("Problem getting mesh from model index", model_index)
-        msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
-        print(msg); bpy.context.workspace.status_text_set(msg)
+        if (i + 1) % 100 == 0:
+            msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
+            print(msg); bpy.context.workspace.status_text_set(msg)
 
     master_collection = bpy.data.collections.new("Models")
     model_collections = [None] * len(model_meshes)
@@ -235,8 +236,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
             _add_mesh_to_scene(context, mesh, collection)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
-        print(f"[{i + 1}/{len(models_to_load)}]")
-        bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+        if (i + 1) % 100 == 0:
+            print(f"[{i + 1}/{len(models_to_load)}]")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
 
     # collections
     root_layer_collection = bpy.context.view_layer.layer_collection
