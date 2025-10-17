@@ -4,6 +4,7 @@ from pathlib import Path
 from forza_blender.forza.pvs.pvs_util import BinaryStream
 from forza_blender.forza.pvs.read_pvs import PVS
 from forza_blender.forza.shaders.read_shader import FXLShader
+from forza_blender.forza.textures.read_bin import CAFF
 from mathutils import Matrix # type: ignore
 from bpy.types import Operator # type: ignore
 from bpy.props import StringProperty # type: ignore
@@ -39,7 +40,7 @@ class FORZA_OT_track_import_modal(Operator):
             if instance_meshes is not None:
                 for instance_mesh in instance_meshes:
                     if instance_mesh is not None:
-                        _add_mesh_to_scene(context, instance_mesh, self.path_bin)
+                        _add_mesh_to_scene(context, instance_mesh, None) # TODO: this needs a collection arg now
 
             # update status/progress
             context.workspace.status_text_set(f"Processing {self.idx+1}/{len(self.pvs.models_instances)}: {item}")
@@ -106,6 +107,17 @@ class FORZA_OT_generate_textures(Operator):
             path_textures: Path = list(path_bin.glob("*.bix"))
             _populate_indexed_textures_from_track(path_textures, save_files=True)
         return {'FINISHED'}
+    
+class FORZA_OT_generate_bin_textures(Operator):
+    bl_idname = "forza.generate_bin_textures"
+    bl_label = "Generate .BIN Textures"
+    
+    def execute(self, context):
+        if context.scene.forza_selection == "FM3":
+            path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
+            path_bin_textures: Path = list(path_bin.glob("*.bin"))
+            _populate_indexed_bin_textures_from_track(path_bin_textures, Path(context.scene.forza_last_track_folder))
+        return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
     """Choose a folder and return its path"""
@@ -170,7 +182,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_track_import,FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_generate_textures,FORZA_OT_track_import_modal)
+classes = (FORZA_OT_track_import,FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_generate_textures,FORZA_OT_generate_bin_textures,FORZA_OT_track_import_modal)
 
 
 def register():
@@ -220,7 +232,7 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
             continue
         collection = bpy.data.collections.new(F"{model_filename} {model_meshes[model_index][0].track_section.name}")
         for mesh in model_meshes[model_index]:
-            _add_mesh_to_scene(context, mesh, path_bin, collection)
+            _add_mesh_to_scene(context, mesh, collection)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
         print(f"[{i + 1}/{len(models_to_load)}]")
@@ -264,7 +276,25 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
         print(f"[{i}/{len(path_textures)}]")
         bpy.context.workspace.status_text_set(f"[{i}/{len(path_textures)}] textures generated")
 
-def _add_mesh_to_scene(context, forza_mesh, path_bin: Path, collection):
+def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
+    path_bin: Path = Path(track_path) / "bin" / "bin_textures"
+    i = 0
+    for path_texture in path_bin_textures:
+        if "stx.bin" in path_texture.name:
+            continue
+
+        img = CAFF.get_image_from_bin(path_texture.resolve())
+
+        image_filename = Path(path_texture).stem + ".dds"
+        image_filepath = path_bin / image_filename
+        with open(image_filepath.resolve(), 'wb') as f: 
+            f.write(img)
+
+        i = i + 1
+        print(f"[{i}/{len(path_bin_textures)}]")
+        bpy.context.workspace.status_text_set(f"[{i}/{len(path_bin_textures)}] textures generated")
+
+def _add_mesh_to_scene(context, forza_mesh, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 

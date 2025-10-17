@@ -30,6 +30,6 @@ def get_image_from_index(root: Path, image_index: str, filetype: str = "dds") ->
             print (f"Image not found: {full_texture_path.stem}")
             return None
         
-        return None
+        return None # TODO: load .bin texture images (once they're implemented)
     img = bpy.data.images.load(full_texture_path_str, check_existing=True)
     return img

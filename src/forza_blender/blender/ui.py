@@ -31,6 +31,7 @@ class FORZA_PT_main(bpy.types.Panel):
             is_import_btn_enabled = not is_track_folder_null_or_empty
             
         _draw_generate_textures_button(context, layout, is_import_btn_enabled)
+        _draw_generate_bin_textures_button(context, layout, is_import_btn_enabled)
         _draw_import_button(context, layout, is_import_btn_enabled)
 
 def _draw_forza_game_picker(context, layout):
@@ -70,6 +71,12 @@ def _draw_generate_textures_button(context, layout, enabled: bool):
     layout.separator()
     import_row = layout.row()
     import_row.operator("forza.generate_textures", icon="CUBE")
+    import_row.enabled = enabled
+
+def _draw_generate_bin_textures_button(context, layout, enabled: bool):
+    layout.separator()
+    import_row = layout.row()
+    import_row.operator("forza.generate_bin_textures", icon="CUBE")
     import_row.enabled = enabled
 
 def _draw_import_button(context, layout, enabled: bool):
