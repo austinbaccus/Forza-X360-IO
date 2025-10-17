@@ -22,13 +22,9 @@ class FORZA_PT_main(bpy.types.Panel):
         
         # import track button
         is_import_btn_enabled: bool = True
-        is_texture_folder_null_or_empty = context.scene.forza_last_texture_folder is None or context.scene.forza_last_texture_folder == ''
         is_track_folder_null_or_empty = context.scene.forza_last_track_folder is None or context.scene.forza_last_track_folder == ''
 
-        if context.scene.use_pregenerated_textures:
-            is_import_btn_enabled = not is_track_folder_null_or_empty and not is_texture_folder_null_or_empty
-        else:
-            is_import_btn_enabled = not is_track_folder_null_or_empty
+        is_import_btn_enabled = not is_track_folder_null_or_empty
             
         _draw_generate_textures_button(context, layout, is_import_btn_enabled)
         _draw_generate_bin_textures_button(context, layout, is_import_btn_enabled)
