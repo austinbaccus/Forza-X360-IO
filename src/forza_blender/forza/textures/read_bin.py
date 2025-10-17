@@ -1,3 +1,4 @@
+import os
 import bpy # type: ignore
 import numpy as np
 
