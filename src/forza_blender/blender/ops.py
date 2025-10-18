@@ -294,13 +294,14 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
     path_bin: Path = Path(track_path) / "bin" / "bin_textures"
     i = 0
     for path_texture in path_bin_textures:
-        img = CAFF.get_image_from_bin(path_texture.resolve())
+        dds = CAFF.get_image_from_bin(path_texture.resolve())
 
-        image_filename = Path(path_texture).stem + ".dds"
-        image_filepath = path_bin / image_filename
-        if img is not None:
+        # save dds as .dds file
+        if dds is not None:
+            image_filename = Path(path_texture).stem + ".dds"
+            image_filepath = path_bin / image_filename
             with open(image_filepath.resolve(), 'wb') as f: 
-                f.write(img)
+                f.write(dds)
         else:
             print("Could not extract texture from .bin")
 

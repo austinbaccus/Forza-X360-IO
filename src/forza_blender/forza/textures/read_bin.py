@@ -3,6 +3,8 @@ import bpy # type: ignore
 import numpy as np
 
 from forza_blender.forza.pvs.pvs_util import BinaryStream
+from forza_blender.forza.textures.read_bix import Bix
+from forza_blender.forza.utils.deswizzle import Deswizzler
 
 # CAFF
 class HeaderUnknown1:
@@ -200,6 +202,15 @@ class TextureAsset:
         for i in range(texture_data_length):
             self.texture_data[i] = stream.read_u8()
 
+        # fix for base_offset_ptr
+        stream.seek(440)
+        self.base_offset_ptr = stream.read_u32()
+
+        stream.seek(self.base_offset_ptr) # skip to base_ptr_offset, which is where the pixel data starts
+        self.pixel_data = stream.read(self.width * self.height * 6)
+        print(self.width * self.height * 6)
+        print(len(self.pixel_data))
+
 class CAFF:
     def __init__(self, asset):
         self.asset = asset
@@ -207,7 +218,30 @@ class CAFF:
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
         texture = CAFF.from_stream(stream).asset
-        return texture
+
+        # convert texture.pixel_data into dds
+        dds = None
+        dumped_image_data = bytearray(texture.pixel_data)
+        if texture.texture_format == 438305108: # D3DFMT_DXT5
+            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
+            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
+        elif texture.texture_format == 438305106: # D3DFMT_DXT1
+            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
+            dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
+        elif texture.texture_format == 438305147: # D3DFMT_DXT5A
+            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
+            dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
+        elif texture.texture_format == 438305137: # D3DFMT_DXN
+            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
+            dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
+        else:
+            return None
+        
+        return dds
 
     def from_stream(stream: BinaryStream):
         header = Header.from_stream(stream)
@@ -219,8 +253,8 @@ class CAFF:
             address += allocation_block.uncompressed_size
         
         data_allocation_block = next(allocation_block for allocation_block in header.allocation_blocks if allocation_block.name == ".data")
-        # data_allocation_block_index = next(i for i in range(len(header.allocation_blocks)) if header.allocation_blocks[i].name == ".data")
-        # data_allocation_block = header.allocation_blocks[data_allocation_block_index]
+        data_allocation_block_index = next(i for i in range(len(header.allocation_blocks)) if header.allocation_blocks[i].name == ".data")
+        data_allocation_block = header.allocation_blocks[data_allocation_block_index]
 
         # table 0
         stream.seek(data_allocation_block.address + header.data_allocation_blocks_size)
@@ -248,8 +282,8 @@ class CAFF:
         # get texture from stream
         asset = None
         for section_info in sections_info:
-            if section_info.allocation_block_index != data_allocation_block.index:
-                continue
+            #if section_info.allocation_block_index != data_allocation_block.index:
+            #    continue
             asset = TextureAsset()
             with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
                 asset.deserialize(stream)
