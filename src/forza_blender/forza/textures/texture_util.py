@@ -22,14 +22,19 @@ def get_image_from_index(root: Path, image_index: str, filetype: str = "dds") ->
 
     if not os.path.exists(full_texture_path_str):
         # try bin
-        hex_str = f"_0x{int(image_index):08X}.bin"
-        full_texture_path = root / Path("bin") / Path(hex_str)
+        hex_str = f"_0x{int(image_index):08X}.{filetype}"
+        full_texture_path = root / Path("bin\\bin_textures") / Path(hex_str)
         full_texture_path_str = str(full_texture_path.resolve())
         
         if not os.path.exists(full_texture_path_str):
             print (f"Image not found: {full_texture_path.stem}")
             return None
         
-        return None # TODO: load .bin texture images (once they're implemented)
+        img = bpy.data.images.load(full_texture_path_str, check_existing=True)
+        img.name = f"{full_texture_path.stem}+{filetype} (bin)"
+        if hasattr(img, "colorspace_settings"):
+            img.colorspace_settings.name = "sRGB"
+        return img
+    
     img = bpy.data.images.load(full_texture_path_str, check_existing=True)
     return img
