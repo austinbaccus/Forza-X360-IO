@@ -9,19 +9,19 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, track_folder_path
         shader_filename_simple = (forza_mesh.track_bin.shader_filenames[fx_filename_index].split('\\')[-1]).split('.')[0]
         material_name = F"{sub.name} {shader_filename_simple}"
 
-        args = (forza_mesh, track_folder_path, material_name)
+        args = (forza_mesh, track_folder_path, material_name, sub.material_index)
 
         func = getattr(Shaders, shader_filename_simple, None)
         if callable(func):
             materials.append(func(*args))
         else:
-            materials.append(Shaders.unknown(forza_mesh, track_folder_path, material_name))
+            materials.append(Shaders.unknown(forza_mesh, track_folder_path, material_name, sub.material_index))
     return materials
 
 
 class Shaders:
     @staticmethod
-    def base(forza_mesh: ForzaMesh, track_folder_path, shader_name: str):
+    def base(forza_mesh: ForzaMesh, track_folder_path, shader_name: str, material_index: int):
         # create material
         mat = bpy.data.materials.new(shader_name)
         mat.use_nodes = True
@@ -30,7 +30,7 @@ class Shaders:
 
         # nodes
         nodes.clear()
-        generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links)
+        generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
         bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (300, 0); bsdf.inputs.get("IOR").default_value = 1.02
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (600, 0)
 
@@ -40,23 +40,23 @@ class Shaders:
         return mat
     
     @staticmethod
-    def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         if "Color" in mat.node_tree.nodes[0].outputs:
             mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
         return mat
 
     # basic
     @staticmethod
-    def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
         mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
         return mat
     
     @staticmethod
-    def diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
         diffuse_node = mat.node_tree.nodes[0]
@@ -76,12 +76,12 @@ class Shaders:
         return mat
 
     @staticmethod
-    def diff_spec_refl(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        return Shaders.diff_spec_opac_refl_3(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_spec_refl(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        return Shaders.diff_spec_opac_refl_3(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     @staticmethod
-    def diff_spec_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_spec_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
         diffuse_node = mat.node_tree.nodes[2]
@@ -99,8 +99,8 @@ class Shaders:
         return mat
 
     @staticmethod
-    def diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
         diffuse_node = mat.node_tree.nodes[2]
@@ -112,15 +112,15 @@ class Shaders:
         return mat
 
     @staticmethod
-    def chain_diff_spec_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def chain_diff_spec_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
         mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
         return mat
     
     # ocean
     @staticmethod
-    def ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
+    def ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         # create material
         mat = bpy.data.materials.new(shader_name)
         mat.use_nodes = True
@@ -139,12 +139,12 @@ class Shaders:
 
     # road
     @staticmethod
-    def road_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        return Shaders.road_diff_spec_ovly_blur_detailscale_2(forza_mesh, path_last_texture_folder, shader_name)
+    def road_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        return Shaders.road_diff_spec_ovly_blur_detailscale_2(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     @staticmethod
-    def road_3clr_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def road_3clr_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
         
         # nodes
@@ -166,8 +166,8 @@ class Shaders:
         return mat
 
     @staticmethod
-    def road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
@@ -190,8 +190,8 @@ class Shaders:
 
     # vegetation
     @staticmethod
-    def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # links
         mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
@@ -200,17 +200,17 @@ class Shaders:
         return mat
 
     @staticmethod
-    def tree_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name)
+    def tree_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     # terrain
     @staticmethod
-    def diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        return Shaders.unknown(forza_mesh, path_last_texture_folder, shader_name)
+    def diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        return Shaders.unknown(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     @staticmethod
-    def terr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name)
+    def terr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
         image_node_count = len(forza_mesh.textures)
         bsdf = mat.node_tree.nodes[-2]
