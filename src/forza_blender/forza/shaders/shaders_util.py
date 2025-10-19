@@ -56,3 +56,24 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
             links.new(map_node.outputs[0], nodes[j].inputs["Vector"])
         y = y - 300
         j += 1
+
+def attach_uv_map_node(mat, x, y, uvmap, target_node_idx):
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = uvmap; uv_map_node.location = (x, y)
+    links.new(uv_map_node.outputs[0], nodes[target_node_idx].inputs[0])
+
+def attach_darken_node(mat, x, y, diffuse_node, shadow_node, output_node = None, output_idx_input_idx = 0):
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (x, y); mix_darken_node.blend_type = 'DARKEN'
+    links.new(diffuse_node.outputs[0], mix_darken_node.inputs[1])
+    links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+    links.new(mix_darken_node.inputs[2], mix_darken_node.inputs[2])
+    if output_node is not None: links.new(mix_darken_node.outputs[0], output_node.inputs[output_idx_input_idx])
+
+def attach_mix_node(mat, x, y, diffuse_node, shadow_node, output_node = None, output_idx_input_idx = 0):
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+    mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (x, y); mix_darken_node.blend_type = 'MIX'
+    links.new(diffuse_node.outputs[0], mix_darken_node.inputs[1])
+    links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+    links.new(mix_darken_node.inputs[2], mix_darken_node.inputs[2])
+    if output_node is not None: links.new(mix_darken_node.outputs[0], output_node.inputs[output_idx_input_idx])
