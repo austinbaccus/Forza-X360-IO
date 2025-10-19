@@ -2,8 +2,9 @@ from forza_blender.forza.pvs.pvs_util import BinaryStream
 from .forza_track_section import ForzaTrackSection
 
 class Material:
-    def __init__(self, fx_filename_index: int):
+    def __init__(self, fx_filename_index: int, texture_sampler_indices: list[int]):
         self.fx_filename_index = fx_filename_index
+        self.texture_sampler_indices = texture_sampler_indices
 
     def from_stream(stream: BinaryStream):
         stream.skip(4) # version
@@ -23,9 +24,9 @@ class Material:
 
         # TextureSamplerIndices_Container
         stream.skip(4) # version
-        length = stream.read_u32()
-        stream.skip(4*length)
-        return Material(fx_filename_index)
+        texture_sampler_indices_length = stream.read_u32()
+        texture_sampler_indices = [stream.read_s32() for _ in range(texture_sampler_indices_length)]
+        return Material(fx_filename_index, texture_sampler_indices)
 
 class MaterialSet:
     def __init__(self, materials: list[Material]):
