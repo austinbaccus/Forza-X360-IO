@@ -533,6 +533,10 @@ class Shaders:
     @staticmethod
     def tree_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
+    
+    @staticmethod
+    def tree_diff_opac_2_2sd_fade(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     @staticmethod
     def tree_diff_opac_vclr_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
