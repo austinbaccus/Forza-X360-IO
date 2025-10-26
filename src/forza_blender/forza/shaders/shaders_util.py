@@ -1,6 +1,7 @@
 from pathlib import Path
 import bpy # type: ignore
 from forza_blender.forza.models.forza_mesh import ForzaMesh
+from forza_blender.forza.pvs.read_pvs import PVSTexture
 from forza_blender.forza.textures.texture_util import get_image_from_index
 
 def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folder_path, nodes, links, material_index: int):
@@ -12,7 +13,7 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
             continue
         if texture_sampler_index == -1:
             # TODO: inherit texture from the current model instance
-            texture = forza_mesh.textures[0]
+            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
         else:
             texture = forza_mesh.textures[texture_sampler_index]
 
@@ -30,7 +31,7 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         # create image texture node
         texture_node = nodes.new("ShaderNodeTexImage")
         texture_node.image = loaded_texture_image
-        texture_node.image.alpha_mode = 'NONE'
+        texture_node.image.alpha_mode = 'CHANNEL_PACKED'
         texture_node.location = (x, y)
         y = y - 300
         i = i + 1
@@ -41,7 +42,7 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         if texture_sampler_index == -2:
             continue
         if texture_sampler_index == -1:
-            texture = forza_mesh.textures[0]
+            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
         else:
             texture = forza_mesh.textures[texture_sampler_index]
 
