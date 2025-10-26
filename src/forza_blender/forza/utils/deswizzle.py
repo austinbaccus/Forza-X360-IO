@@ -1,10 +1,7 @@
-#A Python Tile/Untile Library for XBOX360 textures.
-#Thanks to Banz99 https://github.com/Banz99/Nier-Texture-Manager/blob/master/Decompressor/Form1.cs
-#Thanks GTA XTD texture editor http://www.se7ensins.com/forums/topic/449976-release-gta-iv-xtd-editor/
+import numpy as np
+
 class Deswizzler:
     def XGUntileSurfaceToLinearTexture(data, width, height, textureTypeStr):
-
-        destData = bytearray(len(data))
         blockSize = 0
         texelPitch = 0
 
@@ -20,91 +17,27 @@ class Deswizzler:
         elif textureTypeStr == "CTX1":
             blockSize = 4;
             texelPitch = 8;
+        elif textureTypeStr == "8_8_8_8":
+            blockSize = 1
+            texelPitch = 4
         else:
             print("Bad dxt type!")
             return 0
 
-        blockWidth = width // blockSize
-        blockHeight = height // blockSize
+        blockWidth = (width + blockSize - 1) // blockSize
+        blockHeight = (height + blockSize - 1) // blockSize
 
-        for j in range(blockHeight):
-            for i in range(blockWidth):
-                blockOffset = j * blockWidth + i
+        x, y = np.meshgrid(np.arange(blockWidth), np.arange(blockHeight))
+        srcOffset = Deswizzler.XGAddress2DTiledOffset(x, y, blockWidth, texelPitch)
+        data = data.reshape((-1, texelPitch))
+        return data[srcOffset]
 
-                x = Deswizzler.XGAddress2DTiledX(blockOffset, blockWidth, texelPitch)
-                y = Deswizzler.XGAddress2DTiledY(blockOffset, blockWidth, texelPitch)
-
-                srcOffset = j * blockWidth * texelPitch + i * texelPitch
-                destOffset = y * blockWidth * texelPitch + x * texelPitch
-                if destOffset < len(data):             
-                    destData[destOffset:destOffset+texelPitch] = data[srcOffset:srcOffset+texelPitch]
-
-        return destData
-
-    def XGTileSurfaceFromLinearTexture(data, width, height, textureTypeStr):
-    
-        destData = bytearray(len(data))
-        blockSize = 0
-        texelPitch = 0
-        if textureTypeStr == "DXT1":
-            blockSize = 4
-            texelPitch = 8
-        elif textureTypeStr == "DXT5":
-            blockSize = 4
-            texelPitch = 16
-        elif textureTypeStr == "UNC":
-            blockSize = 2;
-            texelPitch = 4;
-        elif textureTypeStr == "CTX1":
-            blockSize = 4;
-            texelPitch = 8;
-        else:
-            print("Bad dxt type!")
-            return 0
-
-        blockWidth = width // blockSize;
-        blockHeight = height // blockSize;
-
-        for j in range(blockHeight):
-            for i in range(blockWidth):
-                blockOffset = j * blockWidth + i
-
-                x = Deswizzler.XGAddress2DTiledX(blockOffset, blockWidth, texelPitch)
-                y = Deswizzler.XGAddress2DTiledY(blockOffset, blockWidth, texelPitch)
-
-                destOffset = j * blockWidth * texelPitch + i * texelPitch
-                srcOffset  = y * blockWidth * texelPitch + x * texelPitch
-                if destOffset < len(data):                
-                    destData[destOffset:destOffset+texelPitch] = data[srcOffset:srcOffset+texelPitch]
-        return destData
-        
-    def XGAddress2DTiledX(Offset, Width, TexelPitch):
-
+    # from xgraphics.h from Xbox 360 XDK
+    def XGAddress2DTiledOffset(x, y, Width, TexelPitch):
         AlignedWidth = (Width + 31) & ~31
-
         LogBpp = (TexelPitch >> 2) + ((TexelPitch >> 1) >> (TexelPitch >> 2))
-        OffsetB = Offset << LogBpp
-        OffsetT = ((OffsetB & ~4095) >> 3) + ((OffsetB & 1792) >> 2) + (OffsetB & 63)
-        OffsetM = OffsetT >> (7 + LogBpp)
+        Macro = ((x >> 5) + (y >> 5) * (AlignedWidth >> 5)) << (LogBpp + 7)
+        Micro = (((x & 7) + ((y & 6) << 2)) << LogBpp)
+        Offset = Macro + ((Micro & ~15) << 1) + (Micro & 15) + ((y & 8) << (3 + LogBpp)) + ((y & 1) << 4)
 
-        MacroX = ((OffsetM % (AlignedWidth >> 5)) << 2)
-        Tile = ((((OffsetT >> (5 + LogBpp)) & 2) + (OffsetB >> 6)) & 3)
-        Macro = (MacroX + Tile) << 3
-        Micro = ((((OffsetT >> 1) & ~15) + (OffsetT & 15)) & ((TexelPitch << 3) - 1)) >> LogBpp
-
-        return (Macro + Micro)
-
-    def XGAddress2DTiledY(Offset, Width, TexelPitch):
-        AlignedWidth = (Width + 31) & ~31
-
-        LogBpp = (TexelPitch >> 2) + ((TexelPitch >> 1) >> (TexelPitch >> 2))
-        OffsetB = Offset << LogBpp
-        OffsetT = ((OffsetB & ~4095) >> 3) + ((OffsetB & 1792) >> 2) + (OffsetB & 63)
-        OffsetM = OffsetT >> (7 + LogBpp)
-
-        MacroY = ((OffsetM // (AlignedWidth >> 5)) << 2)
-        Tile = ((OffsetT >> (6 + LogBpp)) & 1) + (((OffsetB & 2048) >> 10))
-        Macro = (MacroY + Tile) << 3
-        Micro = ((((OffsetT & (((TexelPitch << 6) - 1) & ~31)) + ((OffsetT & 15) << 1)) >> (3 + LogBpp)) & ~1)
-
-        return (Macro + Micro + ((OffsetT & 16) >> 4))
+        return (((Offset & ~511) << 3) + ((Offset & 448) << 2) + (Offset & 63) + ((y & 16) << 7) + (((((y & 8) >> 2) + (x >> 3)) & 3) << 6)) >> LogBpp

@@ -3,6 +3,7 @@ import bpy # type: ignore
 import tempfile
 import struct
 import os
+import numpy as np
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
@@ -46,26 +47,24 @@ class Bix():
             main_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
 
         # read file `b`
-        dumped_image_data = None
-        with open(file_b_path, "rb") as f:
-            dumped_image_data = bytearray(Path(file_b_path).read_bytes())
+        dumped_image_data = np.fromfile(file_b_path, np.uint8)
 
         if format == 438305108: # D3DFMT_DXT5
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
-            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
+            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), width, height)
         elif format == 438305106: # D3DFMT_DXT1
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(71, blocks, width, height) # DXGI_FORMAT_BC1_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), width, height) # DXGI_FORMAT_BC1_UNORM
         elif format == 438305147: # D3DFMT_DXT5A
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(80, blocks, width, height) # DXGI_FORMAT_BC4_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), width, height) # DXGI_FORMAT_BC4_UNORM
         elif format == 438305137: # D3DFMT_DXN
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
-            dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), width, height) # DXGI_FORMAT_BC5_UNORM
         else:
             return None
             #raise ValueError("Unsupported deswizzling format!")
@@ -262,26 +261,18 @@ class Bix():
 
         return dest_data
 
-    def flip_byte_order_16bit(data: bytes):
-        if len(data) % 2 != 0:
+    def flip_byte_order_16bit(data: np.ndarray):
+        if data.size % 2 != 0:
             raise ValueError(
                 "Data length must be a multiple of 2 bytes for 16-bit flipping."
             )
 
-        flipped = bytearray()
-        for i in range(0, len(data), 2):
-            group = data[i : i + 2]
-            flipped.extend(group[::-1])  # Reverse the 2-byte group
-        return flipped
+        return data.view(np.uint16).byteswap().view(np.uint8)
     
-    def flip_byte_order_32bit(data: bytes):
-        if len(data) % 4 != 0:
+    def flip_byte_order_32bit(data: np.ndarray):
+        if data.size % 4 != 0:
             raise ValueError(
                 "Data length must be a multiple of 4 bytes for 32-bit flipping."
             )
 
-        flipped = bytearray()
-        for i in range(0, len(data), 4):
-            group = data[i : i + 4]
-            flipped.extend(group[::-1])  # Reverse the 4-byte group
-        return flipped
+        return data.view(np.uint32).byteswap().view(np.uint8)
