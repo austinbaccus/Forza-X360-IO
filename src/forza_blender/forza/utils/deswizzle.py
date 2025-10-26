@@ -17,6 +17,9 @@ class Deswizzler:
         elif textureTypeStr == "CTX1":
             blockSize = 4;
             texelPitch = 8;
+        elif textureTypeStr == "8_8_8_8":
+            blockSize = 1
+            texelPitch = 4
         else:
             print("Bad dxt type!")
             return 0
