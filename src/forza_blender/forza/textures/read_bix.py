@@ -51,19 +51,19 @@ class Bix():
 
         if format == 438305108: # D3DFMT_DXT5
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5", levels)
             dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), width, height)
         elif format == 438305106: # D3DFMT_DXT1
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1", levels)
             dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), width, height) # DXGI_FORMAT_BC1_UNORM
         elif format == 438305147: # D3DFMT_DXT5A
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1")
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT1", levels)
             dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), width, height) # DXGI_FORMAT_BC4_UNORM
         elif format == 438305137: # D3DFMT_DXN
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5")
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, "DXT5", levels)
             dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), width, height) # DXGI_FORMAT_BC5_UNORM
         else:
             return None
