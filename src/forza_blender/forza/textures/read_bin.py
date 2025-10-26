@@ -251,6 +251,10 @@ class CAFF:
                 dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
                 blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8")
                 dds = Bix.wrap_as_dds_dx10_bc(88, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
+            elif texture.texture_format == 405275014: # D3DFMT_A8R8G8B8
+                dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8")
+                dds = Bix.wrap_as_dds_dx10_bc(87, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM 
             else:
                 dds = None
             dds_list[i] = dds
