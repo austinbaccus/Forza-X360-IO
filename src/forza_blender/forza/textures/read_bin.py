@@ -229,23 +229,23 @@ class CAFF:
 
         # convert texture.pixel_data into dds
         dds = None
-        dumped_image_data = bytearray(texture.pixel_data)
+        dumped_image_data = np.frombuffer(texture.pixel_data, np.uint8)
         if texture.texture_format == 438305108: # D3DFMT_DXT5
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
-            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
+            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), texture.width, texture.height)
         elif texture.texture_format == 438305106: # D3DFMT_DXT1
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
         elif texture.texture_format == 438305147: # D3DFMT_DXT5A
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
         elif texture.texture_format == 438305137: # D3DFMT_DXN
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
-            dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
+            dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
         else:
             return None
         
