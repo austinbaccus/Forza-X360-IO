@@ -225,31 +225,33 @@ class CAFF:
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
         caff: CAFF = CAFF.from_stream(stream)
-        texture = TextureAsset.from_buffer(caff.data_assets[0], caff.gpu_assets[0])
+        textures = [TextureAsset.from_buffer(data, gpu) for data, gpu in zip(caff.data_assets, caff.gpu_assets)]
 
         # convert texture.pixel_data into dds
-        dds = None
-        dumped_image_data = np.frombuffer(texture.pixel_data, np.uint8)
-        if texture.texture_format == 438305108: # D3DFMT_DXT5
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
-            dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), texture.width, texture.height)
-        elif texture.texture_format == 438305106: # D3DFMT_DXT1
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
-        elif texture.texture_format == 438305147: # D3DFMT_DXT5A
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
-            dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
-        elif texture.texture_format == 438305137: # D3DFMT_DXN
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
-            dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
-        else:
-            return None
-        
-        return dds
+        dds_list = [None] * len(textures)
+        for i, texture in enumerate(textures):
+            dumped_image_data = np.frombuffer(texture.pixel_data, np.uint8)
+            if texture.texture_format == 438305108: # D3DFMT_DXT5
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
+                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), texture.width, texture.height)
+            elif texture.texture_format == 438305106: # D3DFMT_DXT1
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
+                dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
+            elif texture.texture_format == 438305147: # D3DFMT_DXT5A
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1")
+                dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
+            elif texture.texture_format == 438305137: # D3DFMT_DXN
+                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
+                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5")
+                dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
+            else:
+                dds = None
+            dds_list[i] = dds
+
+        return dds_list
 
     def from_stream(stream: BinaryStream):
         header = Header.from_stream(stream)

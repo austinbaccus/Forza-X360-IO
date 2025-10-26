@@ -119,10 +119,10 @@ class FORZA_OT_generate_bin_textures(Operator):
 
             filtered_path_bin_textures = [
                 f for f in path_bin_textures 
-                if not f.name.endswith('rmb.bin') and not f.name.endswith('stx.bin')
+                if not f.name.endswith('rmb.bin')
             ]
 
-            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder))
+            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder), context.scene.forza_last_ribbon_folder)
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -289,14 +289,23 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
             print(f"[{i + 1}/{len(path_textures)}]")
             bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
-def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
+def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, path_ribbon: str):
     path_bin: Path = Path(track_path) / "bin" / "bin_textures"
-    for i, path_texture in enumerate(path_bin_textures):
-        dds = CAFF.get_image_from_bin(path_texture.resolve())
+    path_ribbon_pvs: Path = next(Path(path_ribbon).glob("*.pvs"))
+    pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+
+    dds_stx = CAFF.get_image_from_bin(next(p for p in path_bin_textures if p.name.endswith(".stx.bin")).resolve())
+    for i, pvs_texture in enumerate(pvs.textures):
+        file_name = F"_0x{pvs_texture.texture_file_name:08X}"
+        path_texture = next((p for p in path_bin_textures if p.name == F"{file_name}.bin"), None)
+        if path_texture is not None:
+            dds = CAFF.get_image_from_bin(path_texture.resolve())[0]
+        else:
+            dds = dds_stx[pvs_texture.index_in_stx_bin]
 
         # save dds as .dds file
         if dds is not None:
-            image_filename = Path(path_texture).stem + ".dds"
+            image_filename = F"{file_name}.dds"
             image_filepath = path_bin / image_filename
             with open(image_filepath.resolve(), 'wb') as f: 
                 f.write(dds)
@@ -304,8 +313,8 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
             print("Could not extract texture from .bin")
 
         if (i + 1) % 100 == 0:
-            print(f"[{i + 1}/{len(path_bin_textures)}]")
-            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_bin_textures)}] textures generated")
+            print(f"[{i + 1}/{len(pvs.textures)}]")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(pvs.textures)}] textures generated")
 
 def _add_mesh_to_scene(context, forza_mesh, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
