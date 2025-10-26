@@ -61,7 +61,7 @@ class Header:
 
 class SectionInfo:
     def deserialize(self, stream: BinaryStream):
-        stream.skip(4)
+        self.asset_index = stream.read_u32()
         self.asset_offset = stream.read_u32()
         self.asset_size = stream.read_u32()
         self.allocation_block_index = stream.read_u8()
@@ -179,45 +179,53 @@ class Rendergraph:
             # TODO: assign materials
 
 class TextureAsset:
-    def deserialize(self, stream: BinaryStream):
+    def __init__(self, texture_format: int, texture_type: int, width: int, height: int, base_offset_ptr: int, mip_offset: int, levels: int, pixel_data: bytes):
+        self.texture_format = texture_format
+        self.texture_type = texture_type
+        self.width = width
+        self.height = height
+        self.base_offset_ptr = base_offset_ptr
+        self.mip_offset = mip_offset
+        self.levels = levels
+        self.pixel_data = pixel_data
+
+    def from_buffer(data: bytes, gpu: bytes):
+        return TextureAsset.from_stream(BinaryStream.from_buffer(data, ">"), gpu)
+
+    def from_stream(stream: BinaryStream, pixel_data: bytes):
         stream.skip(24)
-        self.texture_format = stream.read_u32()
-        self.texture_type = stream.read_u32()
+        texture_format = stream.read_u32()
+        texture_type = stream.read_u32()
         stream.skip(4)
-        self.width = stream.read_u16()
-        self.height = stream.read_u16()
+        width = stream.read_u16()
+        height = stream.read_u16()
         stream.skip(12)
-        self.base_offset_ptr = stream.read_u32() # Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
-        self.mip_offset = stream.read_u32() # uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
-        self.levels = stream.read_u8() # uint8 levels; // 48 _BYTE Levels
-        stream.skip(3) # uint8 gap31[3];
-        self.pTexture_ptr = stream.read_u32() # Pointer pTexture_ptr; // 52 _DWORD pTexture; filled by process
-        self.depth = stream.read_u32() # uint32 depth; // 56 _DWORD Depth; or array length?
-        stream.skip(8) # uint8 gap3C[8];
-        stream.skip(4) # uint32 dword44; // 68 _DWORD
-        stream.skip(4) # uint32 dword48; // 72 _DWORD
-        stream.skip(4) # uint32 dword4C; // 76 _DWORD
-        texture_data_length = 36 # size depends on texture type
-        self.texture_data = [None] * texture_data_length # uint8 pTexture[36];
-        for i in range(texture_data_length):
-            self.texture_data[i] = stream.read_u8()
+        base_offset_ptr = stream.read_u32() # Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
+        mip_offset = stream.read_u32() # uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
+        levels = stream.read_u8() # uint8 levels; // 48 _BYTE Levels
+        # stream.skip(3) # uint8 gap31[3];
+        # pTexture_ptr = stream.read_u32() # Pointer pTexture_ptr; // 52 _DWORD pTexture; filled by process
+        # depth = stream.read_u32() # uint32 depth; // 56 _DWORD Depth; or array length?
+        # stream.skip(8) # uint8 gap3C[8];
+        # stream.skip(4) # uint32 dword44; // 68 _DWORD
+        # stream.skip(4) # uint32 dword48; // 72 _DWORD
+        # stream.skip(4) # uint32 dword4C; // 76 _DWORD
+        # texture_data_length = 36 # size depends on texture type
+        # texture_data = [None] * texture_data_length # uint8 pTexture[36];
+        # for i in range(texture_data_length):
+        #     texture_data[i] = stream.read_u8()
 
-        # fix for base_offset_ptr
-        stream.seek(440)
-        self.base_offset_ptr = stream.read_u32()
-
-        stream.seek(self.base_offset_ptr) # skip to base_ptr_offset, which is where the pixel data starts
-        self.pixel_data = stream.read(self.width * self.height * 6)
-        print(self.width * self.height * 6)
-        print(len(self.pixel_data))
+        return TextureAsset(texture_format, texture_type, width, height, base_offset_ptr, mip_offset, levels, pixel_data)
 
 class CAFF:
-    def __init__(self, asset):
-        self.asset = asset
+    def __init__(self, data_assets: bytes, gpu_assets: bytes):
+        self.data_assets = data_assets
+        self.gpu_assets = gpu_assets
 
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
-        texture = CAFF.from_stream(stream).asset
+        caff: CAFF = CAFF.from_stream(stream)
+        texture = TextureAsset.from_buffer(caff.data_assets[0], caff.gpu_assets[0])
 
         # convert texture.pixel_data into dds
         dds = None
@@ -253,8 +261,7 @@ class CAFF:
             address += allocation_block.uncompressed_size
         
         data_allocation_block = next(allocation_block for allocation_block in header.allocation_blocks if allocation_block.name == ".data")
-        data_allocation_block_index = next(i for i in range(len(header.allocation_blocks)) if header.allocation_blocks[i].name == ".data")
-        data_allocation_block = header.allocation_blocks[data_allocation_block_index]
+        gpu_allocation_block = next(allocation_block for allocation_block in header.allocation_blocks if allocation_block.name == ".gpu")
 
         # table 0
         stream.seek(data_allocation_block.address + header.data_allocation_blocks_size)
@@ -280,16 +287,14 @@ class CAFF:
         unk_2_b.apply(stream, header.allocation_blocks, sections_info)
 
         # get texture from stream
-        asset = None
+        data_assets = [None] * header.assets_length
+        gpu_assets = [None] * header.assets_length
         for section_info in sections_info:
-            #if section_info.allocation_block_index != data_allocation_block.index:
-            #    continue
-            asset = TextureAsset()
-            with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
-                asset.deserialize(stream)
-            break
+            if section_info.allocation_block_index - 1 == data_allocation_block.index:
+                with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
+                    data_assets[section_info.asset_index - 1] = stream.read(section_info.asset_size)
+            elif section_info.allocation_block_index - 1 == gpu_allocation_block.index:
+                with stream.scoped_seek(gpu_allocation_block.address + section_info.asset_offset):
+                    gpu_assets[section_info.asset_index - 1] = stream.read(section_info.asset_size)
         
-        if asset is None:
-            return CAFF(None)
-        
-        return CAFF(asset)
+        return CAFF(data_assets, gpu_assets)
