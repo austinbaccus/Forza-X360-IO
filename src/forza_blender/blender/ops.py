@@ -279,21 +279,19 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     master_layer_collection.exclude = True
 
 def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
-    i = 0
-    for path_texture in path_textures:
+    for i, path_texture in enumerate(path_textures):
         filename = str(path_texture.resolve())
         if not filename.endswith("_B.bix"):
             img = Bix.get_image_from_bix(path_texture.resolve(), save_image=save_files)
             texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
             indexed_textures[texture_idx] = img
-        i = i + 1
-        print(f"[{i}/{len(path_textures)}]")
-        bpy.context.workspace.status_text_set(f"[{i}/{len(path_textures)}] textures generated")
+        if (i + 1) % 100 == 0:
+            print(f"[{i + 1}/{len(path_textures)}]")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
 def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
     path_bin: Path = Path(track_path) / "bin" / "bin_textures"
-    i = 0
-    for path_texture in path_bin_textures:
+    for i, path_texture in enumerate(path_bin_textures):
         dds = CAFF.get_image_from_bin(path_texture.resolve())
 
         # save dds as .dds file
@@ -305,9 +303,9 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path):
         else:
             print("Could not extract texture from .bin")
 
-        i = i + 1
-        print(f"[{i}/{len(path_bin_textures)}]")
-        bpy.context.workspace.status_text_set(f"[{i}/{len(path_bin_textures)}] textures generated")
+        if (i + 1) % 100 == 0:
+            print(f"[{i + 1}/{len(path_bin_textures)}]")
+            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_bin_textures)}] textures generated")
 
 def _add_mesh_to_scene(context, forza_mesh, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
