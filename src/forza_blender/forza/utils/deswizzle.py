@@ -1,7 +1,7 @@
 import numpy as np
 
 class Deswizzler:
-    def XGUntileSurfaceToLinearTexture(data, width, height, textureTypeStr):
+    def XGUntileSurfaceToLinearTexture(data, width, height, textureTypeStr, levels):
         blockSize = 0
         texelPitch = 0
 
@@ -24,10 +24,18 @@ class Deswizzler:
             print("Bad dxt type!")
             return 0
 
+        offset_x = 0
+        offset_y = 0
+        if levels != 1 and (width <= 16 or height <= 16):
+            if width <= height:
+                offset_x = 16 // blockSize
+            else:
+                offset_y = 16 // blockSize
+
         blockWidth = (width + blockSize - 1) // blockSize
         blockHeight = (height + blockSize - 1) // blockSize
 
-        x, y = np.meshgrid(np.arange(blockWidth), np.arange(blockHeight))
+        x, y = np.meshgrid(np.arange(offset_x, offset_x + blockWidth), np.arange(offset_y, offset_y + blockHeight))
         srcOffset = Deswizzler.XGAddress2DTiledOffset(x, y, blockWidth, texelPitch)
         data = data.reshape((-1, texelPitch))
         return data[srcOffset]
