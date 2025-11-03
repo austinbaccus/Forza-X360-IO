@@ -199,7 +199,6 @@ class TextureAsset:
         stream.skip(4)
         width = stream.read_u16()
         height = stream.read_u16()
-        stream.skip(12)
         base_offset_ptr = stream.read_u32() # Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
         mip_offset = stream.read_u32() # uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
         levels = stream.read_u8() # uint8 levels; // 48 _BYTE Levels
