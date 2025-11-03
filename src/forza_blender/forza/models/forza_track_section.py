@@ -65,7 +65,7 @@ class ForzaTrackSection:
 
         submeshes_faces = []
         submeshes_material_indexes = []
-        for sub in self.subsections:
+        for i, sub in enumerate(self.subsections):
             indices = np.frombuffer(sub.index_buffer.data, ">u4" if sub.index_buffer.is_32bit else ">u2")
             # convert tristrips to triangle list if needed
             if sub.index_type == IndexType.TriStrip:
@@ -73,6 +73,6 @@ class ForzaTrackSection:
             else:
                 faces = indices.reshape(-1, 3)
             submeshes_faces.append(faces)
-            submeshes_material_indexes.append(np.full(faces.shape[0], sub.material_index, np.uint32))
+            submeshes_material_indexes.append(np.full(faces.shape[0], i, np.uint32))
 
         return vertices, np.concatenate(submeshes_faces), np.concatenate(submeshes_material_indexes)
