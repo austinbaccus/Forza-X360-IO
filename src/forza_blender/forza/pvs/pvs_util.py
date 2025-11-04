@@ -112,9 +112,24 @@ class BinaryStream:
         return self._stream.read(length).decode(encoding)
 
     # null-terminated string
-    def read_cstring(self, size, encoding: str = "ascii"):
+    def read_cstring(self, size: int, encoding: str = "ascii"):
         buf = self.read(size)
         return buf.split(b"\x00", 1)[0].decode(encoding)
+
+    def read_cstrings(self, size: int, encoding: str = "ascii"):
+        buf = self._stream.read(size)
+        l = buf.split(b"\x00")
+        return [b.decode(encoding) for b in l]
+
+    def read_cstring_variable(self, encoding: str = "ascii"):
+        buf = self._stream.getbuffer()
+        s_begin = self._stream.tell()
+        s_end = s_begin
+        while buf[s_end] != 0:
+            s_end += 1
+        result = self._stream.read(s_end - s_begin).decode(encoding)
+        self._stream.seek(1, os.SEEK_CUR)
+        return result
 
     def read_u8(self) -> int:
         return self._u8.read()

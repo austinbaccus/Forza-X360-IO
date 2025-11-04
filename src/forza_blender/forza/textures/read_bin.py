@@ -179,8 +179,9 @@ class Rendergraph:
             # TODO: assign materials
 
 class Asset:
-    def __init__(self, stream: BinaryStream, data_ptr: int):
+    def __init__(self, stream: BinaryStream, name: str, data_ptr: int):
         self.stream = stream
+        self.name = name
         self.data_ptr = data_ptr
 
 class TextureAsset:
@@ -233,7 +234,7 @@ class CAFF:
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
         caff: CAFF = CAFF.from_stream(stream)
-        textures: list[TextureAsset] = [TextureAsset.from_asset(asset) for asset in caff.assets]
+        textures: list[TextureAsset] = [TextureAsset.from_asset(asset) for asset in caff.assets if asset.name.endswith(".bin")]
 
         # convert texture.pixel_data into dds
         dds_list = [None] * len(textures)
@@ -283,8 +284,18 @@ class CAFF:
 
         # table 0
         stream.seek(data_allocation_block.address + header.data_allocation_blocks_size)
+
         assets_names_size = stream.read_u32()
-        stream.skip(4 * header.assets_length + assets_names_size)
+        assets_names_offsets = [stream.read_u32() for _ in range(header.assets_length)]
+        assets_names = stream.read_cstrings(assets_names_size)
+        offset = 0
+        for i in range(header.assets_length):
+            if offset != assets_names_offsets[i]:
+                raise RuntimeError()
+            offset += len(assets_names[i]) + 1
+        if offset != assets_names_size:
+            raise RuntimeError()
+
         unk_names_size = stream.read_u32()
         stream.skip(unk_names_size)
         sections_info = [SectionInfo() for _ in range(header.sections_length)]
@@ -308,6 +319,6 @@ class CAFF:
         assets = [None] * header.assets_length
         for section_info in sections_info:
             if section_info.allocation_block_index - 1 == data_allocation_block.index:
-                assets[section_info.asset_index - 1] = Asset(stream, data_allocation_block.address + section_info.asset_offset)
+                assets[section_info.asset_index - 1] = Asset(stream, assets_names[section_info.asset_index - 1], data_allocation_block.address + section_info.asset_offset)
         
         return CAFF(assets)
