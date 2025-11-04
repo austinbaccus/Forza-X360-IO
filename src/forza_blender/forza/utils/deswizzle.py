@@ -13,6 +13,16 @@ class Deswizzler:
             case _:
                 raise RuntimeError("Unsupported GPU format.")
 
+    def calc_texture_size(d3d_format: int, width_texels: int, height_texels: int):
+        block_size, texel_pitch = Deswizzler.get_block_info(d3d_format)
+
+        width_in_blocks = (width_texels + block_size - 1) // block_size
+        height_in_blocks = (height_texels + block_size - 1) // block_size
+
+        aligned_width = (width_in_blocks + 31) & ~31
+        aligned_height = (height_in_blocks + 31) & ~31
+        return aligned_width * aligned_height * texel_pitch
+
     def XGUntileSurfaceToLinearTexture(data: np.ndarray, width: int, height: int, d3d_format: int, levels: int):
         block_size, texel_pitch = Deswizzler.get_block_info(d3d_format)
 
