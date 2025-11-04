@@ -178,8 +178,15 @@ class Rendergraph:
             bpy.context.collection.objects.link(obj)
             # TODO: assign materials
 
+class Asset:
+    def __init__(self, stream: BinaryStream, name: str, data_ptr: int):
+        self.stream = stream
+        self.name = name
+        self.data_ptr = data_ptr
+
 class TextureAsset:
-    def __init__(self, texture_format: int, texture_type: int, width: int, height: int, base_offset_ptr: int, mip_offset: int, levels: int, pixel_data: bytes):
+    def __init__(self, stream: BinaryStream, texture_format: int, texture_type: int, width: int, height: int, base_offset_ptr: int, mip_offset: int, levels: int):
+        self.stream = stream
         self.texture_format = texture_format
         self.texture_type = texture_type
         self.width = width
@@ -187,19 +194,18 @@ class TextureAsset:
         self.base_offset_ptr = base_offset_ptr
         self.mip_offset = mip_offset
         self.levels = levels
-        self.pixel_data = pixel_data
 
-    def from_buffer(data: bytes, gpu: bytes):
-        return TextureAsset.from_stream(BinaryStream.from_buffer(data, ">"), gpu)
+    def from_asset(asset: Asset):
+        with asset.stream.scoped_seek(asset.data_ptr):
+            return TextureAsset.from_stream(asset.stream)
 
-    def from_stream(stream: BinaryStream, pixel_data: bytes):
+    def from_stream(stream: BinaryStream):
         stream.skip(24)
         texture_format = stream.read_u32()
         texture_type = stream.read_u32()
         stream.skip(4)
         width = stream.read_u16()
         height = stream.read_u16()
-        stream.skip(12)
         base_offset_ptr = stream.read_u32() # Pointer base_offset_ptr; // 40 _DWORD BaseOffset; ptr to .gpu, texture data itself
         mip_offset = stream.read_u32() # uint32 mip_offset; // 44 _DWORD MipOffset; XGHEADER_CONTIGUOUS_MIP_OFFSET = 0xFFFFFFFF
         levels = stream.read_u8() # uint8 levels; // 48 _BYTE Levels
@@ -215,54 +221,61 @@ class TextureAsset:
         # for i in range(texture_data_length):
         #     texture_data[i] = stream.read_u8()
 
-        return TextureAsset(texture_format, texture_type, width, height, base_offset_ptr, mip_offset, levels, pixel_data)
+        return TextureAsset(stream, texture_format, texture_type, width, height, base_offset_ptr, mip_offset, levels)
+    
+    def read_pixel_data(self, size: int):
+        with self.stream.scoped_seek(self.base_offset_ptr):
+            return self.stream.read(size)
 
 class CAFF:
-    def __init__(self, data_assets: bytes, gpu_assets: bytes):
-        self.data_assets = data_assets
-        self.gpu_assets = gpu_assets
+    def __init__(self, assets: Asset):
+        self.assets = assets
 
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
         caff: CAFF = CAFF.from_stream(stream)
-        textures = [TextureAsset.from_buffer(data, gpu) for data, gpu in zip(caff.data_assets, caff.gpu_assets)]
+        textures: list[TextureAsset] = [TextureAsset.from_asset(asset) for asset in caff.assets if asset.name.endswith(".bin")]
 
         # convert texture.pixel_data into dds
         dds_list = [None] * len(textures)
         for i, texture in enumerate(textures):
-            dumped_image_data = np.frombuffer(texture.pixel_data, np.uint8)
-            if texture.texture_format == 438305108: # D3DFMT_DXT5
+            pixel_data_size = Deswizzler.calc_texture_size(texture.texture_format, texture.width, texture.height)
+            dumped_image_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
+
+            endian = (texture.texture_format & 0xC0) >> 6
+            if endian == 1: # GPUENDIAN_8IN16
                 dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5", texture.levels)
-                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), texture.width, texture.height)
-            elif texture.texture_format == 438305106: # D3DFMT_DXT1
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
-            elif texture.texture_format == 438305147: # D3DFMT_DXT5A
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
-            elif texture.texture_format == 438305137: # D3DFMT_DXN
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
-            elif texture.texture_format == 673710470: # D3DFMT_X8R8G8B8
+            elif endian == 2: # GPUENDIAN_8IN32
                 dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(88, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
-            elif texture.texture_format == 405275014: # D3DFMT_A8R8G8B8
-                dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(87, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM 
             else:
-                dds = None
+                raise RuntimeError("Unknown texture format endian")
+
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, texture.texture_format, texture.levels)
+            blocks = blocks.tobytes()
+            match texture.texture_format:
+                case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
+                    dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
+                case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
+                    dds = Bix.wrap_as_dds_dx10_bc(74, blocks, texture.width, texture.height) # DXGI_FORMAT_BC2_UNORM
+                case 438305108 | 438337364 : # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
+                    dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
+                case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
+                    dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
+                case 438305137: # D3DFMT_DXN
+                    dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
+                case 405275014: # D3DFMT_A8R8G8B8
+                    dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM
+                case 673710470 | 673742470 | 673742726: # D3DFMT_X8R8G8B8, D3DFMT_LIN_X8R8G8B8, MAKESRGBFMT(D3DFMT_X8R8G8B8)
+                    dds = Bix.wrap_as_dds_dx10_bc(88, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
+                case _:
+                    print("Unsupported D3D format:", texture.texture_format)
+                    dds = None
             dds_list[i] = dds
 
         return dds_list
 
     def from_stream(stream: BinaryStream):
-        header = Header.from_stream(stream)
+        header: Header = Header.from_stream(stream)
         
         address = header.header_size
         for i, allocation_block in enumerate(header.allocation_blocks):
@@ -271,12 +284,21 @@ class CAFF:
             address += allocation_block.uncompressed_size
         
         data_allocation_block = next(allocation_block for allocation_block in header.allocation_blocks if allocation_block.name == ".data")
-        gpu_allocation_block = next(allocation_block for allocation_block in header.allocation_blocks if allocation_block.name == ".gpu")
 
         # table 0
         stream.seek(data_allocation_block.address + header.data_allocation_blocks_size)
+
         assets_names_size = stream.read_u32()
-        stream.skip(4 * header.assets_length + assets_names_size)
+        assets_names_offsets = [stream.read_u32() for _ in range(header.assets_length)]
+        assets_names = stream.read_cstrings(assets_names_size)
+        offset = 0
+        for i in range(header.assets_length):
+            if offset != assets_names_offsets[i]:
+                raise RuntimeError()
+            offset += len(assets_names[i]) + 1
+        if offset != assets_names_size:
+            raise RuntimeError()
+
         unk_names_size = stream.read_u32()
         stream.skip(unk_names_size)
         sections_info = [SectionInfo() for _ in range(header.sections_length)]
@@ -297,14 +319,9 @@ class CAFF:
         unk_2_b.apply(stream, header.allocation_blocks, sections_info)
 
         # get texture from stream
-        data_assets = [None] * header.assets_length
-        gpu_assets = [None] * header.assets_length
+        assets = [None] * header.assets_length
         for section_info in sections_info:
             if section_info.allocation_block_index - 1 == data_allocation_block.index:
-                with stream.scoped_seek(data_allocation_block.address + section_info.asset_offset):
-                    data_assets[section_info.asset_index - 1] = stream.read(section_info.asset_size)
-            elif section_info.allocation_block_index - 1 == gpu_allocation_block.index:
-                with stream.scoped_seek(gpu_allocation_block.address + section_info.asset_offset):
-                    gpu_assets[section_info.asset_index - 1] = stream.read(section_info.asset_size)
+                assets[section_info.asset_index - 1] = Asset(stream, assets_names[section_info.asset_index - 1], data_allocation_block.address + section_info.asset_offset)
         
-        return CAFF(data_assets, gpu_assets)
+        return CAFF(assets)
