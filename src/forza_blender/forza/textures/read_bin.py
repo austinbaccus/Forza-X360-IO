@@ -230,32 +230,32 @@ class CAFF:
         dds_list = [None] * len(textures)
         for i, texture in enumerate(textures):
             dumped_image_data = np.frombuffer(texture.pixel_data, np.uint8)
-            if texture.texture_format == 438305108: # D3DFMT_DXT5
+
+            endian = (texture.texture_format & 0xC0) >> 6
+            if endian == 1: # GPUENDIAN_8IN16
                 dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5", texture.levels)
-                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks.tobytes(), texture.width, texture.height)
-            elif texture.texture_format == 438305106: # D3DFMT_DXT1
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(71, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
-            elif texture.texture_format == 438305147: # D3DFMT_DXT5A
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT1", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(80, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
-            elif texture.texture_format == 438305137: # D3DFMT_DXN
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "DXT5", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(83, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
-            elif texture.texture_format == 673710470: # D3DFMT_X8R8G8B8
+            elif endian == 2: # GPUENDIAN_8IN32
                 dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(88, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
-            elif texture.texture_format == 405275014: # D3DFMT_A8R8G8B8
-                dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-                blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, "8_8_8_8", texture.levels)
-                dds = Bix.wrap_as_dds_dx10_bc(87, blocks.tobytes(), texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM 
             else:
-                dds = None
+                raise RuntimeError("Unknown texture format endian")
+
+            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, texture.texture_format, texture.levels)
+            blocks = blocks.tobytes()
+            match texture.texture_format:
+                case 438305106: # D3DFMT_DXT1
+                    dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
+                case 438305108: # D3DFMT_DXT5
+                    dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
+                case 438305147: # D3DFMT_DXT5A
+                    dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
+                case 438305137: # D3DFMT_DXN
+                    dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
+                case 405275014: # D3DFMT_A8R8G8B8
+                    dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM 
+                case 673710470: # D3DFMT_X8R8G8B8
+                    dds = Bix.wrap_as_dds_dx10_bc(88, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
+                case _:
+                    dds = None
             dds_list[i] = dds
 
         return dds_list

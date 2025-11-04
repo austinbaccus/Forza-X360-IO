@@ -1,43 +1,35 @@
 import numpy as np
 
 class Deswizzler:
-    def XGUntileSurfaceToLinearTexture(data, width, height, textureTypeStr, levels):
-        blockSize = 0
-        texelPitch = 0
+    def get_block_info(d3d_format: int):
+        gpu_format = d3d_format & 0x3F
+        match gpu_format:
+            case 6: # 8_8_8_8
+                return 1, 4
+            case 18 | 59: # DXT1, DXT5A
+                return 4, 8
+            case 20 | 49: # DXT5, DXN
+                return 4, 16
+            case _:
+                raise RuntimeError("Unsupported GPU format.")
 
-        if textureTypeStr == "DXT1":
-            blockSize = 4
-            texelPitch = 8
-        elif textureTypeStr == "DXT5":
-            blockSize = 4
-            texelPitch = 16
-        elif textureTypeStr == "UNC":
-            blockSize = 2;
-            texelPitch = 4;
-        elif textureTypeStr == "CTX1":
-            blockSize = 4;
-            texelPitch = 8;
-        elif textureTypeStr == "8_8_8_8":
-            blockSize = 1
-            texelPitch = 4
-        else:
-            print("Bad dxt type!")
-            return 0
+    def XGUntileSurfaceToLinearTexture(data: np.ndarray, width: int, height: int, d3d_format: int, levels: int):
+        block_size, texel_pitch = Deswizzler.get_block_info(d3d_format)
 
         offset_x = 0
         offset_y = 0
         if levels != 1 and (width <= 16 or height <= 16):
             if width <= height:
-                offset_x = 16 // blockSize
+                offset_x = 16 // block_size
             else:
-                offset_y = 16 // blockSize
+                offset_y = 16 // block_size
 
-        blockWidth = (width + blockSize - 1) // blockSize
-        blockHeight = (height + blockSize - 1) // blockSize
+        width_in_blocks = (width + block_size - 1) // block_size
+        height_in_blocks = (height + block_size - 1) // block_size
 
-        x, y = np.meshgrid(np.arange(offset_x, offset_x + blockWidth), np.arange(offset_y, offset_y + blockHeight))
-        srcOffset = Deswizzler.XGAddress2DTiledOffset(x, y, blockWidth, texelPitch)
-        data = data.reshape((-1, texelPitch))
+        x, y = np.meshgrid(np.arange(offset_x, offset_x + width_in_blocks), np.arange(offset_y, offset_y + height_in_blocks))
+        srcOffset = Deswizzler.XGAddress2DTiledOffset(x, y, width_in_blocks, texel_pitch)
+        data = data.reshape((-1, texel_pitch))
         return data[srcOffset]
 
     # from xgraphics.h from Xbox 360 XDK
