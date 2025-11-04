@@ -8,7 +8,7 @@ class Deswizzler:
                 return 1, 4
             case 18 | 59: # DXT1, DXT5A
                 return 4, 8
-            case 20 | 49: # DXT5, DXN
+            case 19 | 20 | 49: # DXT3, DXT5, DXN
                 return 4, 16
             case _:
                 raise RuntimeError("Unsupported GPU format.")
@@ -19,7 +19,12 @@ class Deswizzler:
         width_in_blocks = (width_texels + block_size - 1) // block_size
         height_in_blocks = (height_texels + block_size - 1) // block_size
 
-        aligned_width = (width_in_blocks + 31) & ~31
+        tiled = (d3d_format & 0x100) >> 8
+        if tiled:
+            width_alignment = 32
+        else:
+            width_alignment = max(256 // texel_pitch, 32)
+        aligned_width = (width_in_blocks + width_alignment - 1) & ~(width_alignment - 1)
         aligned_height = (height_in_blocks + 31) & ~31
         return aligned_width * aligned_height * texel_pitch
 
@@ -38,9 +43,17 @@ class Deswizzler:
         height_in_blocks = (height + block_size - 1) // block_size
 
         x, y = np.meshgrid(np.arange(offset_x, offset_x + width_in_blocks), np.arange(offset_y, offset_y + height_in_blocks))
-        srcOffset = Deswizzler.XGAddress2DTiledOffset(x, y, width_in_blocks, texel_pitch)
-        data = data.reshape((-1, texel_pitch))
-        return data[srcOffset]
+
+        tiled = (d3d_format & 0x100) >> 8
+        if tiled:
+            src_offset = Deswizzler.XGAddress2DTiledOffset(x, y, width_in_blocks, texel_pitch)
+            data = data.reshape((-1, texel_pitch))
+            return data[src_offset]
+        else:
+            width_alignment = max(256 // texel_pitch, 32)
+            aligned_width = (width_in_blocks + width_alignment - 1) & ~(width_alignment - 1)
+            data = data.reshape((-1, aligned_width, texel_pitch))
+            return data[y, x]
 
     # from xgraphics.h from Xbox 360 XDK
     def XGAddress2DTiledOffset(x, y, Width, TexelPitch):

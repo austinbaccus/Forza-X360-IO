@@ -58,15 +58,18 @@ class Bix():
         blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, format, levels)
         blocks = blocks.tobytes()
         match format:
-            case 438305106: # D3DFMT_DXT1
+            case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
                 dds = Bix.wrap_as_dds_dx10_bc(71, blocks, width, height) # DXGI_FORMAT_BC1_UNORM
-            case 438305108: # D3DFMT_DXT5
+            case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
+                dds = Bix.wrap_as_dds_dx10_bc(74, blocks, width, height) # DXGI_FORMAT_BC2_UNORM
+            case 438305108 | 438337364: # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
                 dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
-            case 438305147: # D3DFMT_DXT5A
+            case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
                 dds = Bix.wrap_as_dds_dx10_bc(80, blocks, width, height) # DXGI_FORMAT_BC4_UNORM
             case 438305137: # D3DFMT_DXN
                 dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
             case _:
+                print("Unsupported D3D format:", format)
                 return None
                 #raise ValueError("Unsupported deswizzling format!")
 

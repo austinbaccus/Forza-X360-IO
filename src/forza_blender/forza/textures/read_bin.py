@@ -253,19 +253,22 @@ class CAFF:
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, texture.texture_format, texture.levels)
             blocks = blocks.tobytes()
             match texture.texture_format:
-                case 438305106: # D3DFMT_DXT1
+                case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
                     dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
-                case 438305108: # D3DFMT_DXT5
+                case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
+                    dds = Bix.wrap_as_dds_dx10_bc(74, blocks, texture.width, texture.height) # DXGI_FORMAT_BC2_UNORM
+                case 438305108 | 438337364 : # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
                     dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
-                case 438305147: # D3DFMT_DXT5A
+                case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
                     dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
                 case 438305137: # D3DFMT_DXN
                     dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
                 case 405275014: # D3DFMT_A8R8G8B8
-                    dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM 
-                case 673710470: # D3DFMT_X8R8G8B8
+                    dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM
+                case 673710470 | 673742470 | 673742726: # D3DFMT_X8R8G8B8, D3DFMT_LIN_X8R8G8B8, MAKESRGBFMT(D3DFMT_X8R8G8B8)
                     dds = Bix.wrap_as_dds_dx10_bc(88, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
                 case _:
+                    print("Unsupported D3D format:", texture.texture_format)
                     dds = None
             dds_list[i] = dds
 
