@@ -199,11 +199,27 @@ def unregister():
 
 def _import_fm3(context, track_path: Path, path_ribbon: Path):
     path_bin: Path = Path(track_path) / "bin"
+    path_textures: Path = path_bin / "textures"
     path_ribbon_pvs: Path = list(Path(path_ribbon).glob("*.pvs"))[0]
 
     # get pvs & shaders instances
     pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
+
+    # scan texture files
+    existing_textures = set(p.name[3:11] for p in path_textures.glob("_0x????????.dds"))
+
+    texture_files = [None] * len(pvs.textures)
+    for i, pvs_texture in enumerate(pvs.textures):
+        # TODO: replace by image file object
+        file_index = pvs_texture.texture_file_name
+        is_stx = False
+        if F"{file_index:08X}" not in existing_textures:
+            tmp_file_index = pvs_texture.index_in_stx_bin | 0x80000000
+            if F"{tmp_file_index:08X}" in existing_textures:
+                file_index = tmp_file_index
+                is_stx = True
+        texture_files[i] = (pvs_texture, file_index, is_stx)
 
     # figure out which models need to be loaded
     pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
@@ -221,10 +237,10 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
 
     # for each model in models_to_load, load the mesh and add it to model_meshes
     for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
-        pvs_texture_filenames = [pvs.textures[texture_idx] for texture_idx in pvs_model.textures]
+        model_textures = [texture_files[texture_idx] for texture_idx in pvs_model.textures]
         # TODO: check if all textures for a track section are being passed to the track subsection
         path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
-        try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, pvs_texture_filenames, shaders)
+        try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, model_textures, shaders)
         except: print("Problem getting mesh from model index", model_index)
         if (i + 1) % 100 == 0:
             msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
@@ -290,10 +306,11 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
             bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
 def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, path_ribbon: str):
-    path_bin: Path = Path(track_path) / "bin" / "bin_textures"
+    path_bin: Path = Path(track_path) / "bin" / "textures"
     path_ribbon_pvs: Path = next(Path(path_ribbon).glob("*.pvs"))
     pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
 
+    known_stx_indexes = set()
     dds_stx = CAFF.get_image_from_bin(next(p for p in path_bin_textures if p.name.endswith(".stx.bin")).resolve())
     for i, pvs_texture in enumerate(pvs.textures):
         file_name = F"_0x{pvs_texture.texture_file_name:08X}"
@@ -301,7 +318,12 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, pat
         if path_texture is not None:
             dds = CAFF.get_image_from_bin(path_texture.resolve())[0]
         else:
-            dds = dds_stx[pvs_texture.index_in_stx_bin]
+            stx_index = pvs_texture.index_in_stx_bin
+            if stx_index in known_stx_indexes:
+                continue
+            known_stx_indexes.add(stx_index)
+            file_name = F"_0x{stx_index | 0x80000000:08X}"
+            dds = dds_stx[stx_index]
 
         # save dds as .dds file
         if dds is not None:

@@ -5,22 +5,23 @@ from forza_blender.forza.pvs.read_pvs import PVSTexture
 from forza_blender.forza.textures.texture_util import get_image_from_index
 
 def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folder_path, nodes, links, material_index: int):
+    texture_indexes = forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices
+
     x = 0
     y = 0
-    i = 0
-    for texture_sampler_index in forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices:
-        if texture_sampler_index == -2:
+    for i, texture_index in enumerate(texture_indexes):
+        if texture_index == -2:
             continue
-        if texture_sampler_index == -1:
+        if texture_index == -1:
             # TODO: inherit texture from the current model instance
-            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
+            texture_file_index = 0xFFFFFFFF
         else:
-            texture = forza_mesh.textures[texture_sampler_index]
+            _, texture_file_index, _ = forza_mesh.textures[texture_index]
 
         # get texture
         loaded_texture_image = None
 
-        texture_img = get_image_from_index(track_folder_path, texture.texture_file_name)
+        texture_img = get_image_from_index(track_folder_path, texture_file_index)
         if texture_img is not None:
             loaded_texture_image = texture_img
         else:
@@ -30,31 +31,32 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
 
         # create image texture node
         texture_node = nodes.new("ShaderNodeTexImage")
+        texture_node.label = F"t{i}"
         texture_node.image = loaded_texture_image
-        texture_node.image.alpha_mode = 'CHANNEL_PACKED'
+        texture_node.image.alpha_mode = "CHANNEL_PACKED"
         texture_node.location = (x, y)
         y = y - 300
-        i = i + 1
 
     y = 0
     j = 0
-    for texture_sampler_index in forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices:
-        if texture_sampler_index == -2:
+    for texture_index in texture_indexes:
+        if texture_index == -2:
             continue
-        if texture_sampler_index == -1:
-            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
+        if texture_index == -1:
+            is_stx = False
+            pvs_texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
         else:
-            texture = forza_mesh.textures[texture_sampler_index]
+            pvs_texture, _, is_stx = forza_mesh.textures[texture_index]
 
-        # if scale is not (1,1), create texture coordinate node and mapping node
-        if texture.u_scale != 1.0 or texture.v_scale != 1.0:
+        # if the image is from .stx.bin, create UV mapping node
+        if is_stx and pvs_texture.u_scale != 1.0 and pvs_texture.v_scale != 1.0 and pvs_texture.u_translate != 0.0 and pvs_texture.v_translate != 0.0:
             map_node = nodes.new('ShaderNodeMapping')
-            map_node.inputs['Scale'].default_value = (texture.u_scale, texture.v_scale, 1.0)
+            map_node.inputs['Scale'].default_value = (pvs_texture.u_scale, pvs_texture.v_scale, 1.0)
             map_node.location = (x-300, y)
             tex_coord_node = nodes.new(type='ShaderNodeTexCoord')
             tex_coord_node.location = (x-600, y)
             links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-            links.new(map_node.outputs[0], nodes[j].inputs["Vector"])
+            links.new(map_node.outputs[0], nodes[i].inputs["Vector"])
         y = y - 300
         j += 1
 

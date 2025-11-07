@@ -2,7 +2,7 @@ from forza_blender.forza.pvs.read_pvs import PVSTexture
 from .forza_vertex import ForzaVertex
 
 class ForzaMesh:
-    def __init__(self, name: str, material_name: str, faces, vertices: ForzaVertex, material_indexes, track_bin, track_section, textures = None, shader_filenames = None):
+    def __init__(self, name: str, material_name: str, faces, vertices: ForzaVertex, material_indexes, track_bin, track_section, textures: list[tuple[PVSTexture, int, bool]], shader_filenames):
         self.name = name
         self.material_name = material_name
         self.faces = faces
@@ -10,7 +10,7 @@ class ForzaMesh:
         self.material_indexes = material_indexes
         self.track_bin = track_bin
         self.track_section = track_section
-        self.textures: list[PVSTexture] = textures
+        self.textures = textures
 
         self.track_section_index: int = None
         self.track_section_filename: str = None
