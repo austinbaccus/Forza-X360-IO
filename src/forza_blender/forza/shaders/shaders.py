@@ -70,16 +70,80 @@ class Shaders:
 
     @staticmethod
     def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
+
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_map_node = nodes.new("ShaderNodeUVMap")
+        uv2_map_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        # BSDF
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
+
         return mat
     
     @staticmethod
     def diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
+
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_map_node = nodes.new("ShaderNodeUVMap")
+        uv2_map_node.uv_map = "TEXCOORD0"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        # BSDF
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
+
         return mat
     
     @staticmethod
@@ -106,19 +170,29 @@ class Shaders:
     @staticmethod
     def diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        diffuse_node = textures[0]
-        ambient_occlusion_node = textures[7]
-        mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.blend_type = 'DARKEN'
-        uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -200)
+        # t0
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
 
-        # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
-        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_map_node = nodes.new("ShaderNodeUVMap")
+        uv2_map_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
 
@@ -169,23 +243,40 @@ class Shaders:
 
     @staticmethod
     def diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        roughness_node = textures[0]; roughness_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
-        diffuse_node = textures[2]
-        shadow_node = textures[7]
-        uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 0); mix_darken_node.blend_type = 'DARKEN'
+        # t2
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
 
-        # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        # links.new(roughness_node.out_rgb, bsdf.inputs["Roughness"])
-        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
-        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
-        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        t2 = textures[2] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t2.in_uv)
+
+        # t7
+        uv2_map_node = nodes.new("ShaderNodeUVMap")
+        uv2_map_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t2.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        # BSDF
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t2.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
         return mat
 
@@ -330,23 +421,41 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        diffuse1_node = textures[0]
-        diffuse2_node = textures[1]
-        shadow_node = textures[7]
-        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.inputs['Fac'].default_value = .8; mix_rgb_node.blend_type = 'OVERLAY'
-        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (4.0, 4.0, 1.0); map_node.location = (-300, 0)
-        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, 0)
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
+        # t0
+        geometry_node = nodes.new("ShaderNodeNewGeometry")
 
-        # links
-        links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(map_node.outputs[0], diffuse1_node.in_uv)
-        links.new(diffuse1_node.out_rgb, mix_rgb_node.inputs[1])
-        links.new(diffuse2_node.out_rgb, mix_rgb_node.inputs[2])
-        links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY"
+        t0_uv_node.inputs["Vector_001"].default_value = (1, -1, 0)
+        links.new(geometry_node.outputs["Position"], t0_uv_node.inputs["Vector"])
+
+        t0 = textures[0] # TextureMap_4903
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+
+        # t1, t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t1 = textures[1] # Diff_Spec02
+        links.new(uv2_node.outputs["UV"], t1.in_uv)
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        overlay_t1_t0_node = nodes.new("ShaderNodeMix")
+        overlay_t1_t0_node.data_type = "RGBA"
+        overlay_t1_t0_node.blend_type = "OVERLAY"
+        overlay_t1_t0_node.inputs["Factor"].default_value = 1
+        links.new(t1.out_rgb, overlay_t1_t0_node.inputs["A"])
+        links.new(t0.out_rgb, overlay_t1_t0_node.inputs["B"])
+
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(overlay_t1_t0_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
 
@@ -355,26 +464,43 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        diffuse1_node = textures[0]
-        diffuse2_node = textures[1]
-        shadow_node = textures[7]
-        mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.inputs['Fac'].default_value = .8; mix_rgb_node.blend_type = 'OVERLAY'
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
-        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (1.0, 1.0, 1.0); map_node.location = (-300, -300)
-        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -300)
-        uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -600)
+        # r11.yzw = Diff_Spec02Sampler.xyz
+        # r9.yzw = TextureMap_4903Sampler.xyz
+        # r14.yzw = 2 * r11.yzw * r9.yzw
+        # r6.yzw = 1 - 2 * (1 - r11.yzw) * (1 - r9.yzw)
+        # r6.yzw = lerp(r14.yzw, r6.yzw, saturate(10000 * (r11.yzw - 0.5)))
 
-        # links
-        links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(map_node.outputs[0], diffuse1_node.in_uv)
-        links.new(uv_map_node.outputs[0], shadow_node.in_uv)
+        # t0
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
 
-        links.new(diffuse1_node.out_rgb, mix_rgb_node.inputs[1])
-        links.new(diffuse2_node.out_rgb, mix_rgb_node.inputs[2])
-        links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        t0 = textures[0] # TextureMap_4903
+        links.new(uv0_node.outputs["UV"], t0.in_uv)
+
+        # t1, t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t1 = textures[1] # Diff_Spec02
+        links.new(uv2_node.outputs["UV"], t1.in_uv)
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        overlay_t1_t0_node = nodes.new("ShaderNodeMix")
+        overlay_t1_t0_node.data_type = "RGBA"
+        overlay_t1_t0_node.blend_type = "OVERLAY"
+        overlay_t1_t0_node.inputs["Factor"].default_value = 1
+        links.new(t1.out_rgb, overlay_t1_t0_node.inputs["A"])
+        links.new(t0.out_rgb, overlay_t1_t0_node.inputs["B"])
+
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(overlay_t1_t0_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
     
@@ -419,15 +545,27 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        diffuse_node = textures[0]
-        shadow_node = textures[7]
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (300, 150); mix_darken_node.blend_type = 'DARKEN'
+        # t0
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
 
-        # links
-        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
-        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
 
@@ -465,12 +603,40 @@ class Shaders:
     # vegetation
     @staticmethod
     def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
-        
-        # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
+
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        # BSDF
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
         return mat
     
@@ -478,15 +644,33 @@ class Shaders:
         return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     @staticmethod
-    def tree_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
-
-    @staticmethod
     def tree_diff_opac_vclr_2_2sd_notanfade(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
     def tree_diff_opac_vclr_2_2sd_nofade(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        return Shaders.bush_diff_opac_2_2sd(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_map_node = nodes.new("ShaderNodeUVMap")
+        uv0_map_node.uv_map = "TEXCOORD0"
+
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+
+        # BSDF
+        links.new(t0.out_rgb, bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
+
+        return mat
 
     @staticmethod
     def tree_diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
@@ -568,12 +752,40 @@ class Shaders:
 
     @staticmethod
     def diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
-        
-        # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
+
+        t0 = textures[0] # Diffuse_Texture
+        links.new(uv0_node.outputs["UV"], t0.in_uv)
+
+        # t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        # BSDF
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+
+        links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
         return mat
 
@@ -582,39 +794,41 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        grass_node = textures[0]
-        rock1_node = textures[1]
-        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
-        ambient_occlusion_node = textures[7]
-        
-        uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -900)
-        links.new(uv_map_node.outputs[0], ambient_occlusion_node.in_uv)
+        # t0, t1
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
 
-        uv_map_node_2 = nodes.new('ShaderNodeUVMap'); uv_map_node_2.uv_map = "TEXCOORD2"; uv_map_node_2.location = (-300, -700)
-        links.new(uv_map_node_2.outputs[0], mask_node.in_uv)
+        t0 = textures[0] # Blend_A
+        links.new(uv0_node.outputs["UV"], t0.in_uv)
 
-        # post-diffuse nodes
-        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
-        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (2.5, 2.5, 1.0); map_node.location = (-300, -400)
-        map_grass_node = nodes.new('ShaderNodeMapping'); map_grass_node.inputs['Scale'].default_value = (5.0, 5.0, 1.0); map_grass_node.location = (-300, 000)
-        separate_colors_node = nodes.new('ShaderNodeSeparateColor'); separate_colors_node.location = (300, -600)
-        normal_map_node = nodes.new(type='ShaderNodeNormalMap'); normal_map_node.location = (300, -1500)
-        mix_mask_node = nodes.new(type='ShaderNodeMixRGB'); mix_mask_node.location = (600, 0); mix_mask_node.blend_type = 'MIX'
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (900, 0); mix_darken_node.blend_type = 'DARKEN'
+        t1 = textures[1] # Blend_B
+        links.new(uv0_node.outputs["UV"], t1.in_uv)
 
-        # links
-        links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.in_uv)
-        links.new(map_node.outputs[0], rock1_node.in_uv)
-        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
-        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
-        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
-        links.new(separate_colors_node.outputs[1], mix_mask_node.inputs[0])
-        links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        # t2, t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t2 = textures[2] # Blend_Value
+        t2.nodes[0].image.colorspace_settings.name = "Non-Color"
+        links.new(uv2_node.outputs["UV"], t2.in_uv)
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        mix_a_b_node = nodes.new("ShaderNodeMix")
+        mix_a_b_node.data_type = "VECTOR"
+        mix_a_b_node.factor_mode = "NON_UNIFORM"
+        links.new(t2.out_rgb, mix_a_b_node.inputs["Factor"])
+        links.new(t0.out_rgb, mix_a_b_node.inputs["A"])
+        links.new(t1.out_rgb, mix_a_b_node.inputs["B"])
+
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(mix_a_b_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
 
@@ -775,38 +989,55 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        # nodes
-        grass_node = textures[0]
-        rock1_node = textures[1]
-        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
-        normal_node = textures[4]
-        amb_occlusion_node = textures[7]
+        # t0, t3
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
 
-        # post-diffuse nodes
-        tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
-        map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (2.5, 2.5, 1.0); map_node.location = (-300, -400)
-        map_grass_node = nodes.new('ShaderNodeMapping'); map_grass_node.inputs['Scale'].default_value = (5.0, 5.0, 1.0); map_grass_node.location = (-300, 000)
-        separate_colors_node = nodes.new('ShaderNodeSeparateColor'); separate_colors_node.location = (300, -600)
-        normal_map_node = nodes.new(type='ShaderNodeNormalMap'); normal_map_node.location = (300, -1200)
-        mix_mask_node = nodes.new(type='ShaderNodeMixRGB'); mix_mask_node.location = (600, 0); mix_mask_node.blend_type = 'MIX'
-        mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (900, 0); mix_darken_node.blend_type = 'DARKEN'
-        uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -600)
+        t0 = textures[0] # Blend_A
+        links.new(uv0_node.outputs["UV"], t0.in_uv)
 
-        # links
-        links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.in_uv)
-        links.new(map_node.outputs[0], rock1_node.in_uv)
-        links.new(uv_map_node.outputs[0], mask_node.in_uv)
-        links.new(map_node.outputs[0], normal_node.in_uv)
-        links.new(normal_node.out_rgb, normal_map_node.inputs["Color"])
-        #links.new(normal_map_node.outputs[0], bsdf.inputs["Normal"])
-        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
-        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
-        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
-        links.new(separate_colors_node.outputs[1], mix_mask_node.inputs[0])
-        links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        t3 = textures[3] # Blend_C
+        links.new(uv0_node.outputs["UV"], t3.in_uv)
+
+        # t1, t2
+        uv1_node = nodes.new("ShaderNodeUVMap")
+        uv1_node.uv_map = "TEXCOORD1"
+
+        t1 = textures[1] # Blend_B
+        links.new(uv1_node.outputs["UV"], t1.in_uv)
+
+        t2 = textures[2] # Blend_Value
+        t2.nodes[0].image.colorspace_settings.name = "Non-Color"
+        links.new(uv1_node.outputs["UV"], t2.in_uv)
+
+        # t7
+        uv2_node = nodes.new("ShaderNodeUVMap")
+        uv2_node.uv_map = "TEXCOORD2"
+
+        t7 = textures[7] # Light_Map
+        links.new(uv2_node.outputs["UV"], t7.in_uv)
+
+        # blend
+        blend_value_separate_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(t2.out_rgb, blend_value_separate_node.inputs["Vector"])
+
+        mix_a_b_node = nodes.new("ShaderNodeMix")
+        mix_a_b_node.data_type = "VECTOR"
+        links.new(blend_value_separate_node.outputs["Y"], mix_a_b_node.inputs["Factor"])
+        links.new(t0.out_rgb, mix_a_b_node.inputs["A"])
+        links.new(t1.out_rgb, mix_a_b_node.inputs["B"])
+
+        mix_c_node = nodes.new("ShaderNodeMix")
+        mix_c_node.data_type = "VECTOR"
+        links.new(blend_value_separate_node.outputs["Z"], mix_c_node.inputs["Factor"])
+        links.new(mix_a_b_node.outputs["Result"], mix_c_node.inputs["A"])
+        links.new(t3.out_rgb, mix_c_node.inputs["B"])
+
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(mix_c_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
+        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
 
         return mat
