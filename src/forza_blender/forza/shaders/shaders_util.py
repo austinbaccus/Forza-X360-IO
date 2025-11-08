@@ -4,23 +4,30 @@ from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.pvs.read_pvs import PVSTexture
 from forza_blender.forza.textures.texture_util import get_image_from_index
 
+class TextureNodeWrapper:
+    def __init__(self, nodes: list[bpy.types.ShaderNodeTexImage], in_uv: bpy.types.NodeSocket, out_rgb: bpy.types.NodeSocket, out_a: bpy.types.NodeSocket):
+        self.nodes = nodes
+        self.in_uv = in_uv
+        self.out_rgb = out_rgb
+        self.out_a = out_a
+
 def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folder_path, nodes, links, material_index: int):
-    x = 0
-    y = 0
-    i = 0
-    for texture_sampler_index in forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices:
-        if texture_sampler_index == -2:
+    texture_indexes = forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices
+    textures: list[TextureNodeWrapper] = [None] * len(texture_indexes)
+
+    for i, texture_index in enumerate(texture_indexes):
+        if texture_index == -2:
             continue
-        if texture_sampler_index == -1:
-            # TODO: inherit texture from the current model instance
-            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
-        else:
-            texture = forza_mesh.textures[texture_sampler_index]
+        if texture_index == -1:
+            textures[i] = generate_inherited_texture_nodes(forza_mesh, track_folder_path, nodes, links, i)
+            continue
+
+        pvs_texture, texture_file_index, is_stx = forza_mesh.textures[texture_index]
 
         # get texture
         loaded_texture_image = None
 
-        texture_img = get_image_from_index(track_folder_path, texture.texture_file_name)
+        texture_img = get_image_from_index(track_folder_path, texture_file_index)
         if texture_img is not None:
             loaded_texture_image = texture_img
         else:
@@ -30,33 +37,82 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
 
         # create image texture node
         texture_node = nodes.new("ShaderNodeTexImage")
+        texture_node.label = F"t{i}"
         texture_node.image = loaded_texture_image
-        texture_node.image.alpha_mode = 'CHANNEL_PACKED'
-        texture_node.location = (x, y)
-        y = y - 300
-        i = i + 1
+        texture_node.image.alpha_mode = "CHANNEL_PACKED"
 
-    y = 0
-    j = 0
-    for texture_sampler_index in forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices:
-        if texture_sampler_index == -2:
-            continue
-        if texture_sampler_index == -1:
-            texture = PVSTexture(0xFFFFFFFF, -1, 1, 1, 0, 0)
+        # if the image is from .stx.bin, create UV mapping node
+        if is_stx and pvs_texture.u_scale != 1.0 and pvs_texture.v_scale != 1.0 and pvs_texture.u_translate != 0.0 and pvs_texture.v_translate != 0.0:
+            uv_node = nodes.new("ShaderNodeVectorMath")
+            uv_node.operation = "MULTIPLY_ADD"
+            uv_node.inputs["Vector_001"].default_value = (pvs_texture.u_scale, pvs_texture.v_scale, 0)
+            uv_node.inputs["Vector_002"].default_value = (pvs_texture.u_translate, -(pvs_texture.v_scale + pvs_texture.v_translate), 0)
+            links.new(uv_node.outputs["Vector"], texture_node.inputs["Vector"])
+            in_uv = uv_node.inputs["Vector"]
         else:
-            texture = forza_mesh.textures[texture_sampler_index]
+            in_uv = texture_node.inputs["Vector"]
 
-        # if scale is not (1,1), create texture coordinate node and mapping node
-        if texture.u_scale != 1.0 or texture.v_scale != 1.0:
-            map_node = nodes.new('ShaderNodeMapping')
-            map_node.inputs['Scale'].default_value = (texture.u_scale, texture.v_scale, 1.0)
-            map_node.location = (x-300, y)
-            tex_coord_node = nodes.new(type='ShaderNodeTexCoord')
-            tex_coord_node.location = (x-600, y)
-            links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-            links.new(map_node.outputs[0], nodes[j].inputs["Vector"])
-        y = y - 300
-        j += 1
+        textures[i] = TextureNodeWrapper([texture_node], in_uv, texture_node.outputs["Color"], texture_node.outputs["Alpha"])
+
+    return textures
+
+def generate_inherited_texture_nodes(forza_mesh: ForzaMesh, track_folder_path, nodes, links, index: int):
+    texture_attribute = nodes.new("ShaderNodeAttribute")
+    texture_attribute.attribute_type = "INSTANCER"
+    texture_attribute.attribute_name = "texture"
+
+    uv_scale_attribute = nodes.new("ShaderNodeAttribute")
+    uv_scale_attribute.attribute_type = "INSTANCER"
+    uv_scale_attribute.attribute_name = "uv_scale"
+
+    uv_translate_attribute = nodes.new("ShaderNodeAttribute")
+    uv_translate_attribute.attribute_type = "INSTANCER"
+    uv_translate_attribute.attribute_name = "uv_translate"
+
+    uv_node = nodes.new("ShaderNodeVectorMath")
+    uv_node.operation = "MULTIPLY_ADD"
+    links.new(uv_scale_attribute.outputs["Vector"], uv_node.inputs["Vector_001"])
+    links.new(uv_translate_attribute.outputs["Vector"], uv_node.inputs["Vector_002"])
+
+    texture_nodes = [None] * len(forza_mesh.inherited_textures)
+
+    prev_mix_node = None
+    for i, texture_file_index in enumerate(forza_mesh.inherited_textures):
+        compare_node = nodes.new("ShaderNodeMath")
+        compare_node.operation = "LESS_THAN"
+        compare_node.inputs["Value_001"].default_value = i
+        links.new(texture_attribute.outputs["Fac"], compare_node.inputs["Value"])
+
+        # get texture
+        loaded_texture_image = None
+
+        texture_img = get_image_from_index(track_folder_path, texture_file_index)
+        if texture_img is not None:
+            loaded_texture_image = texture_img
+        else:
+            addon_dir = Path(__file__).resolve().parent
+            img_path = addon_dir / r"null.png"
+            loaded_texture_image = bpy.data.images.load(str(img_path), check_existing=True)
+
+        # create image texture node
+        texture_node = nodes.new("ShaderNodeTexImage")
+        texture_node.label = F"t{index}_{i}"
+        texture_node.image = loaded_texture_image
+        texture_node.image.alpha_mode = "CHANNEL_PACKED"
+        links.new(uv_node.outputs["Vector"], texture_node.inputs["Vector"])
+
+        mix_node = nodes.new("ShaderNodeMix")
+        mix_node.data_type = "VECTOR"
+        links.new(compare_node.outputs["Value"], mix_node.inputs["Factor"])
+        links.new(texture_node.outputs["Color"], mix_node.inputs["A"])
+
+        texture_nodes[i] = texture_node
+
+        if prev_mix_node is not None:
+            links.new(prev_mix_node.outputs["Result"], mix_node.inputs["B"])
+        prev_mix_node = mix_node
+
+    return TextureNodeWrapper(texture_nodes, uv_node.inputs["Vector"], prev_mix_node.outputs["Result"], None)
 
 def attach_uv_map_node(mat, x, y, uvmap, target_node_idx):
     nodes, links = mat.node_tree.nodes, mat.node_tree.links

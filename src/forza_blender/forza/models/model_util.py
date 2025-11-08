@@ -3,7 +3,7 @@ from pathlib import Path
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.models.read_rmbbin import RmbBin
 from forza_blender.forza.pvs.pvs_util import BinaryStream
-from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.pvs.read_pvs import PVS, PVSTexture
 from forza_blender.forza.shaders.read_shader import FXLShader
 
 def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_files, shaders, context):
@@ -58,7 +58,7 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
 
     return pvs, pvs_model_instances, models_to_load, model_meshes
 
-def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures, shaders: dict[str, FXLShader]):
+def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures: list[tuple[PVSTexture, int, bool]], shaders: dict[str, FXLShader], inherited_textures: list[int]):
     track_bin: RmbBin = RmbBin.from_path(path_trackbin)
     rmbbin_meshes: list[ForzaMesh] = []
 
@@ -69,7 +69,7 @@ def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures, shaders:
         # TODO: replace with proper shader selection based on .pvs file
         fx_index = track_bin.material_sets[0].materials[track_section.subsections[0].material_index].fx_filename_index
         vertices, faces, material_indexes = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
-        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, textures=textures, shader_filenames=track_bin.shader_filenames)
+        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, textures, track_bin.shader_filenames, inherited_textures)
         rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes
