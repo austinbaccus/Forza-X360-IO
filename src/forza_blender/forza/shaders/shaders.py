@@ -30,20 +30,20 @@ class Shaders:
 
         # nodes
         nodes.clear()
-        generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
+        textures = generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
         bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (300, 0); bsdf.inputs.get("IOR").default_value = 1.02
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (600, 0)
 
         # link
         links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
-        return mat
+        return mat, out, bsdf, textures
     
     @staticmethod
     def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        if "Color" in mat.node_tree.nodes[0].outputs:
-            mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        if textures:
+            mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
         return mat
 
 
@@ -51,77 +51,73 @@ class Shaders:
     # basic
     @staticmethod
     def diff_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        ambient_occlusion_node = mat.node_tree.nodes[1]
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
+        diffuse_node = textures[0]
+        ambient_occlusion_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -200)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_2_nolm(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clampuv_nolm_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clamp_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
 
     @staticmethod
     def diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        ambient_occlusion_node = mat.node_tree.nodes[1]
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
+        diffuse_node = textures[0]
+        ambient_occlusion_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -200)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
 
         return mat
@@ -132,184 +128,164 @@ class Shaders:
 
     @staticmethod
     def diff_spec_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[2]
-        ambient_occlusion_node = mat.node_tree.nodes[3]
-        bsdf = mat.node_tree.nodes[-2]
+        diffuse_node = textures[2]
+        ambient_occlusion_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
         return mat
 
     @staticmethod
     def diff_spec_refl_norm_4(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        roughness_node = nodes[0]
-        diffuse_node = nodes[2]
-        ambient_occlusion_node = nodes[4]
-        bsdf = nodes[-2]; bsdf.location = (600, 0)
-        out = nodes[-1]; out.location = (900, 0)
+        roughness_node = textures[0]
+        diffuse_node = textures[2]
+        ambient_occlusion_node = textures[7]
 
         # post-processing nodes
         mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.location = (-300, -700); uv_map_node.uv_map = "TEXCOORD2"
 
         # link
-        links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
-        links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
+        links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
         links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        links.new(roughness_node.outputs[0], bsdf.inputs[2])
+        links.new(roughness_node.out_rgb, bsdf.inputs[2])
 
         return mat
 
     @staticmethod
     def diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        out = mat.node_tree.nodes[-1]; out.location = (1200, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (900, 0)
-        roughness_node = mat.node_tree.nodes[0]; roughness_node.image.colorspace_settings.name = 'Non-Color'
-        diffuse_node = mat.node_tree.nodes[2]
-        shadow_node = mat.node_tree.nodes[3]
+        roughness_node = textures[0]; roughness_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        diffuse_node = textures[2]
+        shadow_node = textures[7]
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 0); mix_darken_node.blend_type = 'DARKEN'
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.inputs["Vector"])
-        links.new(roughness_node.outputs["Color"], bsdf.inputs["Roughness"])
-        links.new(diffuse_node.outputs["Color"], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs["Color"], mix_darken_node.inputs[2])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
+        links.new(roughness_node.out_rgb, bsdf.inputs["Roughness"])
+        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
-        links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
+        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
 
         return mat
 
     @staticmethod
     def diff_spec_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-
-        if len(mat.node_tree.nodes) < 5:
-            return mat
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        roughness_node = mat.node_tree.nodes[1]
-        shadow_node = mat.node_tree.nodes[2]
+        diffuse_node = textures[0]
+        roughness_node = textures[1]
+        shadow_node = textures[7]
         darken_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); darken_node.location = (300, 0); darken_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.inputs[0])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
         mat.node_tree.links.new(darken_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], darken_node.inputs[1])
-        mat.node_tree.links.new(shadow_node.outputs[0], darken_node.inputs[2])
-        mat.node_tree.links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
-        mat.node_tree.links.new(roughness_node.outputs[0], bsdf.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, darken_node.inputs[1])
+        mat.node_tree.links.new(shadow_node.out_rgb, darken_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        mat.node_tree.links.new(roughness_node.out_rgb, bsdf.inputs[2])
 
         return mat  
 
     @staticmethod
     def diff_spec_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        shadow_node = mat.node_tree.nodes[2]
+        diffuse_node = textures[0]
+        shadow_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(shadow_node.outputs["Color"], mix_rgb_node.inputs[2])
-        mat.node_tree.links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
 
         return mat
 
     @staticmethod
     def diff_clr_spec_opac_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (300, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (600, 0)
 
         # nodes
-        diffuse_node = nodes[0]
-        #roughness_node = nodes[1]
-        #shadow_node = nodes[2]
+        diffuse_node = textures[0]
+        #roughness_node = textures[1]
+        #shadow_node = textures[7]
         #mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         #uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        #links.new(uv_map_node.outputs["UV"], shadow_node.inputs["Vector"])
+        #links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
         #links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        #links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        #links.new(shadow_node.outputs["Color"], mix_rgb_node.inputs[2])
-        links.new(diffuse_node.outputs['Alpha'], bsdf.inputs['Alpha'])
-        links.new(diffuse_node.outputs[0], bsdf.inputs[0])
+        #links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        #links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
+        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        links.new(diffuse_node.out_rgb, bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def chain_diff_spec_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        ambient_occlusion_node = mat.node_tree.nodes[2]
+        diffuse_node = textures[0]
+        ambient_occlusion_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
-        mat.node_tree.links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
         return mat
     
     @staticmethod
     def chain_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
 
         # nodes
-        diffuse_node = mat.node_tree.nodes[0]
-        ambient_occlusion_node = mat.node_tree.nodes[1]
+        diffuse_node = textures[0]
+        ambient_occlusion_node = textures[7]
         mix_rgb_node = mat.node_tree.nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.blend_type = 'DARKEN'
         uv_map_node = mat.node_tree.nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -700)
 
         # link
-        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.inputs["Vector"])
+        mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(diffuse_node.outputs["Color"], mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
-        mat.node_tree.links.new(ambient_occlusion_node.outputs["Color"], mix_rgb_node.inputs[2])
+        mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
+        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
         return mat
     
@@ -318,7 +294,7 @@ class Shaders:
     # ocean
     @staticmethod
     def ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, _, _ = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         return mat
 
 
@@ -330,22 +306,20 @@ class Shaders:
 
     @staticmethod
     def road_3clr_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
         
         # nodes
-        asphalt_node = mat.node_tree.nodes[0]
-        tiremarks_node = mat.node_tree.nodes[1]
-        shadow_node = mat.node_tree.nodes[2]
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
+        asphalt_node = textures[0]
+        tiremarks_node = textures[1]
+        shadow_node = textures[7]
         mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, 0); mix_rgb_node.inputs['Fac'].default_value = 0.8; mix_rgb_node.blend_type = 'OVERLAY'
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(asphalt_node.outputs[0], mix_rgb_node.inputs[1])
-        links.new(tiremarks_node.outputs[0], mix_rgb_node.inputs[2])
-        links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(asphalt_node.out_rgb, mix_rgb_node.inputs[1])
+        links.new(tiremarks_node.out_rgb, mix_rgb_node.inputs[2])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
@@ -353,15 +327,13 @@ class Shaders:
 
     @staticmethod
     def road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        diffuse1_node = mat.node_tree.nodes[0]
-        diffuse2_node = mat.node_tree.nodes[1]
-        shadow_node = mat.node_tree.nodes[2]
-        out = mat.node_tree.nodes[-1]; out.location = (1200, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (900, 0)
+        diffuse1_node = textures[0]
+        diffuse2_node = textures[1]
+        shadow_node = textures[7]
         mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.inputs['Fac'].default_value = .8; mix_rgb_node.blend_type = 'OVERLAY'
         map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (4.0, 4.0, 1.0); map_node.location = (-300, 0)
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, 0)
@@ -369,26 +341,24 @@ class Shaders:
 
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(map_node.outputs[0], diffuse1_node.inputs["Vector"])
-        links.new(diffuse1_node.outputs["Color"], mix_rgb_node.inputs[1])
-        links.new(diffuse2_node.outputs["Color"], mix_rgb_node.inputs[2])
+        links.new(map_node.outputs[0], diffuse1_node.in_uv)
+        links.new(diffuse1_node.out_rgb, mix_rgb_node.inputs[1])
+        links.new(diffuse2_node.out_rgb, mix_rgb_node.inputs[2])
         links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def road_diff_spec_ovly_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        diffuse1_node = mat.node_tree.nodes[0]
-        diffuse2_node = mat.node_tree.nodes[1]
-        shadow_node = mat.node_tree.nodes[2]
-        out = mat.node_tree.nodes[-1]; out.location = (1200, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (900, 0)
+        diffuse1_node = textures[0]
+        diffuse2_node = textures[1]
+        shadow_node = textures[7]
         mix_rgb_node = nodes.new(type='ShaderNodeMixRGB'); mix_rgb_node.location = (300, -150); mix_rgb_node.inputs['Fac'].default_value = .8; mix_rgb_node.blend_type = 'OVERLAY'
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
         map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (1.0, 1.0, 1.0); map_node.location = (-300, -300)
@@ -397,87 +367,79 @@ class Shaders:
 
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(map_node.outputs[0], diffuse1_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], shadow_node.inputs[0])
+        links.new(map_node.outputs[0], diffuse1_node.in_uv)
+        links.new(uv_map_node.outputs[0], shadow_node.in_uv)
 
-        links.new(diffuse1_node.outputs["Color"], mix_rgb_node.inputs[1])
-        links.new(diffuse2_node.outputs["Color"], mix_rgb_node.inputs[2])
+        links.new(diffuse1_node.out_rgb, mix_rgb_node.inputs[1])
+        links.new(diffuse2_node.out_rgb, mix_rgb_node.inputs[2])
         links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
     
     @staticmethod
     def rdline_diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        out = mat.node_tree.nodes[-1]; out.location = (1200, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (900, 0)
-        diffuse_node = mat.node_tree.nodes[0]
-        shadow_node = mat.node_tree.nodes[0]
+        diffuse_node = textures[0]
+        shadow_node = textures[7]
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
-        links.new(diffuse_node.outputs["Color"], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs["Color"], mix_darken_node.inputs[2])
+        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
         
         return mat
 
     @staticmethod
     def rdline_diff_opac_clipped_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        diffuse_node = mat.node_tree.nodes[0]
-        shadow_node = mat.node_tree.nodes[1]
+        diffuse_node = textures[0]
+        shadow_node = textures[7]
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (300, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(diffuse_node.outputs["Alpha"], bsdf.inputs['Alpha'])
-        links.new(diffuse_node.outputs["Color"], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs["Color"], mix_darken_node.inputs[2])
+        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
         
         return mat
 
     @staticmethod
     def shldr_diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        out = mat.node_tree.nodes[-1]; out.location = (900, 0)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (600, 0)
-        diffuse_node = mat.node_tree.nodes[0]
-        shadow_node = mat.node_tree.nodes[1]
+        diffuse_node = textures[0]
+        shadow_node = textures[7]
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (300, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(diffuse_node.outputs["Color"], mix_darken_node.inputs[1])
-        links.new(shadow_node.outputs["Color"], mix_darken_node.inputs[2])
+        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
+        links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @ staticmethod
     def road_blnd_diff_spec_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
         # nodes
-        out = nodes[-1]; out.location = (900, 0)
-        bsdf = nodes[-2]; bsdf.location = (600, 0)
-        diffuse_node = nodes[0]
-        tiremarks_node = nodes[1]
-        shadow_node = nodes[3]
+        diffuse_node = textures[0]
+        tiremarks_node = textures[1]
+        shadow_node = textures[7]
         map_node = nodes.new('ShaderNodeMapping'); map_node.inputs['Scale'].default_value = (10.0, 10.0, 1.0); map_node.location = (-300, -300)
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -300)
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (300, 150); mix_darken_node.blend_type = 'DARKEN'; mix_darken_node.inputs['Fac'].default_value = 1.0
@@ -487,15 +449,15 @@ class Shaders:
         
 
         # links
-        links.new(diffuse_node.outputs["Color"], mix_darken_node.inputs[1])
-        links.new(tiremarks_node.outputs["Color"], mix_darken_node.inputs[2])
+        links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
+        links.new(tiremarks_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], mix_darken2_node.inputs[1])
-        links.new(shadow_node.outputs["Color"], mix_darken2_node.inputs[2])
+        links.new(shadow_node.out_rgb, mix_darken2_node.inputs[2])
         links.new(mix_darken2_node.outputs[0], bsdf.inputs[0])
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
-        links.new(map_node.outputs[0], diffuse_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], shadow_node.inputs[0])
-        links.new(uv_map_node.outputs[0], tiremarks_node.inputs[0])
+        links.new(map_node.outputs[0], diffuse_node.in_uv)
+        links.new(uv_map_node.outputs[0], shadow_node.in_uv)
+        links.new(uv_map_node.outputs[0], tiremarks_node.in_uv)
 
         return mat
 
@@ -503,12 +465,12 @@ class Shaders:
     # vegetation
     @staticmethod
     def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.nodes[0].image.alpha_mode = 'STRAIGHT'
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
         
         # links
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
 
         return mat
     
@@ -556,10 +518,10 @@ class Shaders:
 
     @staticmethod
     def diff_spec_vert_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         
         # links
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
 
         return mat
 
@@ -568,18 +530,15 @@ class Shaders:
     # terrain
     @staticmethod
     def shldr_blnd_spec_vclr_mix_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        image_node_count = len(forza_mesh.textures)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        dirt_node = nodes[0]
-        grass_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        rock_node = nodes[3] # TODO how does this blend in camino viejo?
-        amb_occlusion_node = nodes[4]
+        dirt_node = textures[0]
+        grass_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        rock_node = textures[3] # TODO how does this blend in camino viejo?
+        amb_occlusion_node = textures[7]
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -593,49 +552,47 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], dirt_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], amb_occlusion_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], mask_node.inputs["Vector"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(dirt_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], separate_colors_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], dirt_node.in_uv)
+        links.new(uv_map_node.outputs[0], amb_occlusion_node.in_uv)
+        links.new(uv_map_node.outputs[0], mask_node.in_uv)
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(dirt_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
         links.new(separate_colors_node.outputs[2], mix_mask_node.inputs[0]) # separate blue for camino viejo
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        if image_node_count > 5: links.new(amb_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.nodes[0].image.alpha_mode = 'STRAIGHT'
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
         
         # links
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Color"], mat.node_tree.nodes[-2].inputs["Base Color"])
-        mat.node_tree.links.new(mat.node_tree.nodes[0].outputs["Alpha"], mat.node_tree.nodes[-2].inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
 
         return mat
 
     @staticmethod
     def terr_blnd_spec_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        grass_node = nodes[0]
-        rock1_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        ambient_occlusion_node = nodes[3]
+        grass_node = textures[0]
+        rock1_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        ambient_occlusion_node = textures[7]
         
         uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -900)
-        links.new(uv_map_node.outputs[0], ambient_occlusion_node.inputs[0])
+        links.new(uv_map_node.outputs[0], ambient_occlusion_node.in_uv)
 
         uv_map_node_2 = nodes.new('ShaderNodeUVMap'); uv_map_node_2.uv_map = "TEXCOORD2"; uv_map_node_2.location = (-300, -700)
-        links.new(uv_map_node_2.outputs[0], mask_node.inputs[0])
+        links.new(uv_map_node_2.outputs[0], mask_node.in_uv)
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -649,32 +606,29 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], separate_colors_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], rock1_node.in_uv)
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
         links.new(separate_colors_node.outputs[1], mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(ambient_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod 
     def terr_blnd_spec_vclr_mix_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        image_node_count = len(forza_mesh.textures)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        dirt_node = nodes[0]
-        grass_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        rock_node = nodes[3] # TODO how does this blend in camino viejo?
-        amb_occlusion_node = nodes[4]
+        dirt_node = textures[0]
+        grass_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        rock_node = textures[3] # TODO how does this blend in camino viejo?
+        amb_occlusion_node = textures[7]
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -688,38 +642,36 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], dirt_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], amb_occlusion_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], mask_node.inputs["Vector"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(dirt_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], separate_colors_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], dirt_node.in_uv)
+        links.new(uv_map_node.outputs[0], amb_occlusion_node.in_uv)
+        links.new(uv_map_node.outputs[0], mask_node.in_uv)
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(dirt_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
         links.new(separate_colors_node.outputs[2], mix_mask_node.inputs[0]) # separate blue for camino viejo
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        if image_node_count > 5: links.new(amb_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def terr_2_blnd_spec_vclr_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        grass_node = nodes[0]
-        rock1_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        ambient_occlusion_node = nodes[3]
+        grass_node = textures[0]
+        rock1_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        ambient_occlusion_node = textures[7]
         
         uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -900)
-        links.new(uv_map_node.outputs[0], ambient_occlusion_node.inputs[0])
+        links.new(uv_map_node.outputs[0], ambient_occlusion_node.in_uv)
 
         uv_map_node_2 = nodes.new('ShaderNodeUVMap'); uv_map_node_2.uv_map = "TEXCOORD2"; uv_map_node_2.location = (-300, -700)
-        links.new(uv_map_node_2.outputs[0], mask_node.inputs[0])
+        links.new(uv_map_node_2.outputs[0], mask_node.in_uv)
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -732,13 +684,13 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], mix_mask_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], rock1_node.in_uv)
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(ambient_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
 
@@ -746,22 +698,20 @@ class Shaders:
 
     @staticmethod
     def terr_2_blnd_spec_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        grass_node = nodes[0]
-        rock1_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        ambient_occlusion_node = nodes[3]
+        grass_node = textures[0]
+        rock1_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        ambient_occlusion_node = textures[7]
         
         uv_map_node = nodes.new('ShaderNodeUVMap'); uv_map_node.uv_map = "TEXCOORD2"; uv_map_node.location = (-300, -900)
-        links.new(uv_map_node.outputs[0], ambient_occlusion_node.inputs[0])
+        links.new(uv_map_node.outputs[0], ambient_occlusion_node.in_uv)
 
         uv_map_node_2 = nodes.new('ShaderNodeUVMap'); uv_map_node_2.uv_map = "TEXCOORD2"; uv_map_node_2.location = (-300, -700)
-        links.new(uv_map_node_2.outputs[0], mask_node.inputs[0])
+        links.new(uv_map_node_2.outputs[0], mask_node.in_uv)
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -774,30 +724,27 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], mix_mask_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], rock1_node.in_uv)
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(ambient_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
 
     @staticmethod
     def terr_blnd_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        image_node_count = len(forza_mesh.textures)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        grass_node = nodes[0]
-        rock1_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        shadow_node = nodes[3]
+        grass_node = textures[0]
+        rock1_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        shadow_node = textures[7]
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -811,13 +758,13 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], mask_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], shadow_node.inputs["Vector"])
-        links.new(mask_node.outputs[0], mix_mask_node.inputs[0])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], rock1_node.in_uv)
+        links.new(uv_map_node.outputs[0], mask_node.in_uv)
+        links.new(uv_map_node.outputs[0], shadow_node.in_uv)
+        links.new(mask_node.out_rgb, mix_mask_node.inputs[0])
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
@@ -825,18 +772,15 @@ class Shaders:
 
     @staticmethod
     def terr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
-        image_node_count = len(forza_mesh.textures)
-        bsdf = mat.node_tree.nodes[-2]; bsdf.location = (1200, 0)
-        out = mat.node_tree.nodes[-1]; out.location = (1500, 0)
 
         # nodes
-        grass_node = nodes[0]
-        rock1_node = nodes[1]
-        mask_node = nodes[2]; mask_node.image.colorspace_settings.name = 'Non-Color'
-        if image_node_count > 4: normal_node = nodes[4]
-        if image_node_count > 5: amb_occlusion_node = nodes[5]
+        grass_node = textures[0]
+        rock1_node = textures[1]
+        mask_node = textures[2]; mask_node.nodes[0].image.colorspace_settings.name = 'Non-Color'
+        normal_node = textures[4]
+        amb_occlusion_node = textures[7]
 
         # post-diffuse nodes
         tex_coord_node = nodes.new(type='ShaderNodeTexCoord'); tex_coord_node.location = (-600, -200)
@@ -851,19 +795,18 @@ class Shaders:
         # links
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(tex_coord_node.outputs[2], map_grass_node.inputs["Vector"])
-        links.new(map_grass_node.outputs[0], grass_node.inputs["Vector"])
-        links.new(map_node.outputs[0], rock1_node.inputs["Vector"])
-        links.new(uv_map_node.outputs[0], mask_node.inputs["Vector"])
-        if image_node_count > 4:
-            links.new(map_node.outputs[0], normal_node.inputs["Vector"])
-            links.new(normal_node.outputs[0], normal_map_node.inputs["Color"])
-            #links.new(normal_map_node.outputs[0], bsdf.inputs["Normal"])
-        links.new(grass_node.outputs[0], mix_mask_node.inputs[1])
-        links.new(rock1_node.outputs[0], mix_mask_node.inputs[2])
-        links.new(mask_node.outputs[0], separate_colors_node.inputs[0])
+        links.new(map_grass_node.outputs[0], grass_node.in_uv)
+        links.new(map_node.outputs[0], rock1_node.in_uv)
+        links.new(uv_map_node.outputs[0], mask_node.in_uv)
+        links.new(map_node.outputs[0], normal_node.in_uv)
+        links.new(normal_node.out_rgb, normal_map_node.inputs["Color"])
+        #links.new(normal_map_node.outputs[0], bsdf.inputs["Normal"])
+        links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
+        links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
+        links.new(mask_node.out_rgb, separate_colors_node.inputs[0])
         links.new(separate_colors_node.outputs[1], mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        if image_node_count > 5: links.new(amb_occlusion_node.outputs[0], mix_darken_node.inputs[2])
+        links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
 
         return mat
