@@ -31,11 +31,11 @@ class Shaders:
         # nodes
         nodes.clear()
         textures = generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
-        bsdf = nodes.new("ShaderNodeBsdfPrincipled"); bsdf.location = (300, 0); bsdf.inputs.get("IOR").default_value = 1.02
+        bsdf = nodes.new("ShaderNodeEmission")
         out = nodes.new("ShaderNodeOutputMaterial"); out.location = (600, 0)
 
         # link
-        links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
+        links.new(bsdf.outputs["Emission"], out.inputs["Surface"])
 
         return mat, out, bsdf, textures
     
@@ -43,7 +43,7 @@ class Shaders:
     def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         if textures:
-            mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+            mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
         return mat
 
 
@@ -61,7 +61,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
@@ -71,36 +71,36 @@ class Shaders:
     @staticmethod
     def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_2_nolm(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clampuv_nolm_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clamp_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
 
     @staticmethod
@@ -115,7 +115,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
@@ -138,7 +138,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
@@ -162,8 +162,8 @@ class Shaders:
         links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
-        links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
-        links.new(roughness_node.out_rgb, bsdf.inputs[2])
+        links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        # links.new(roughness_node.out_rgb, bsdf.inputs[2])
 
         return mat
 
@@ -181,11 +181,11 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        links.new(roughness_node.out_rgb, bsdf.inputs["Roughness"])
+        # links.new(roughness_node.out_rgb, bsdf.inputs["Roughness"])
         links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
-        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
 
         return mat
 
@@ -202,11 +202,11 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        mat.node_tree.links.new(darken_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(darken_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, darken_node.inputs[1])
         mat.node_tree.links.new(shadow_node.out_rgb, darken_node.inputs[2])
-        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
-        mat.node_tree.links.new(roughness_node.out_rgb, bsdf.inputs[2])
+        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # mat.node_tree.links.new(roughness_node.out_rgb, bsdf.inputs[2])
 
         return mat  
 
@@ -222,10 +222,10 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
-        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
 
         return mat
 
@@ -243,10 +243,10 @@ class Shaders:
 
         # link
         #links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        #links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        #links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         #links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         #links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
-        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, bsdf.inputs[0])
 
         return mat
@@ -263,9 +263,9 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
         return mat
@@ -282,9 +282,9 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
-        mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
         return mat
@@ -389,7 +389,7 @@ class Shaders:
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
@@ -407,7 +407,7 @@ class Shaders:
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (300, 150); mix_darken_node.blend_type = 'DARKEN'
 
         # links
-        links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
+        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
@@ -469,8 +469,8 @@ class Shaders:
         textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
         
         # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
 
         return mat
     
@@ -521,7 +521,7 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         
         # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
 
         return mat
 
@@ -572,8 +572,8 @@ class Shaders:
         textures[0].nodes[0].image.alpha_mode = 'STRAIGHT'
         
         # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Base Color"])
-        mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
 
         return mat
 
