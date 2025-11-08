@@ -42,8 +42,31 @@ class Shaders:
     @staticmethod
     def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        if textures:
-            mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        t0 = textures[0] if textures else None # Diffuse_Texture
+        t7 = textures[7] if len(textures) >= 7 else None # Light_Map
+
+        if t7 is not None:
+            uv2_map_node = nodes.new("ShaderNodeUVMap")
+            uv2_map_node.uv_map = "TEXCOORD2"
+
+            links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+            if t0 is not None:
+                # blend
+                light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+                light_map_mix_node.operation = "MULTIPLY"
+                links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+                links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+
+                # BSDF
+                links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+            else:
+                links.new(t7.out_rgb, bsdf.inputs["Color"])
+        elif t0 is not None:
+            links.new(t0.out_rgb, bsdf.inputs["Color"])
+
         return mat
 
 
