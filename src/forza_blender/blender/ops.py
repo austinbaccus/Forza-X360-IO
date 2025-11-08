@@ -235,12 +235,20 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         models_to_load.append((pvs.sky_model_instance.model_index, pvs.sky_model, "sky"))
         model_meshes.append(None)
 
+    # collect inherited textures
+    models_inherited_textures = [list() for _ in range(len(model_meshes))]
+    for i, pvs_model_instance in enumerate(pvs_model_instances):
+        model_inherited_textures = models_inherited_textures[pvs_model_instance.model_index]
+        _, file_index, _ = texture_files[pvs_model_instance.texture]
+        if file_index not in model_inherited_textures:
+            model_inherited_textures.append(file_index)
+
     # for each model in models_to_load, load the mesh and add it to model_meshes
     for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
         model_textures = [texture_files[texture_idx] for texture_idx in pvs_model.textures]
         # TODO: check if all textures for a track section are being passed to the track subsection
         path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
-        try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, model_textures, shaders)
+        try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, model_textures, shaders, models_inherited_textures[model_index])
         except: print("Problem getting mesh from model index", model_index)
         if (i + 1) % 100 == 0:
             msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
@@ -278,6 +286,15 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         collection_instance.instance_collection = model_collections[pvs_model_instance.model_index]
         collection_instance.show_instancer_for_viewport = False
         collection_instance.parent = instances_parent
+
+        pvs_texture, texture_file_index, is_stx = texture_files[pvs_model_instance.texture]
+        collection_instance["texture"] = models_inherited_textures[pvs_model_instance.model_index].index(texture_file_index)
+        if is_stx:
+            collection_instance["uv_scale"] = (pvs_texture.u_scale, pvs_texture.v_scale)
+            collection_instance["uv_translate"] = (pvs_texture.u_translate, -(pvs_texture.v_scale + pvs_texture.v_translate))
+        else:
+            collection_instance["uv_scale"] = (1, 1)
+            collection_instance["uv_translate"] = (0, 0)
 
         # convert mesh to blender coordinate system
         m = Matrix(pvs_model_instance.transform)
