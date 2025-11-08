@@ -405,7 +405,17 @@ class Shaders:
         links.new(uv0_map_node.outputs["UV"], t1.in_uv)
 
         # t2
+        model_data_attribute = nodes.new("ShaderNodeAttribute")
+        model_data_attribute.attribute_type = "INSTANCER"
+        model_data_attribute.attribute_name = "model_data"
+
+        t2_u_node = nodes.new("ShaderNodeMath")
+        t2_u_node.operation = "DIVIDE"
+        t2_u_node.inputs["Value_001"].default_value = 32
+        links.new(model_data_attribute.outputs["Fac"], t2_u_node.inputs["Value"])
+
         t2_uv_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(t2_u_node.outputs["Value"], t2_uv_node.inputs["X"])
 
         t2 = textures[2] # Palette
         links.new(t2_uv_node.outputs["Vector"], t2.in_uv)
@@ -471,7 +481,17 @@ class Shaders:
         links.new(uv0_map_node.outputs["UV"], t1.in_uv)
 
         # t2
+        model_data_attribute = nodes.new("ShaderNodeAttribute")
+        model_data_attribute.attribute_type = "INSTANCER"
+        model_data_attribute.attribute_name = "model_data"
+
+        t2_u_node = nodes.new("ShaderNodeMath")
+        t2_u_node.operation = "DIVIDE"
+        t2_u_node.inputs["Value_001"].default_value = 32
+        links.new(model_data_attribute.outputs["Fac"], t2_u_node.inputs["Value"])
+
         t2_uv_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(t2_u_node.outputs["Value"], t2_uv_node.inputs["X"])
 
         t2 = textures[2] # Palette
         links.new(t2_uv_node.outputs["Vector"], t2.in_uv)

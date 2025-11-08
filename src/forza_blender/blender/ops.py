@@ -286,6 +286,7 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         collection_instance.instance_collection = model_collections[pvs_model_instance.model_index]
         collection_instance.show_instancer_for_viewport = False
         collection_instance.parent = instances_parent
+        collection_instance["model_data"] = pvs_model_instance.model_data
 
         pvs_texture, texture_file_index, is_stx = texture_files[pvs_model_instance.texture]
         collection_instance["texture"] = models_inherited_textures[pvs_model_instance.model_index].index(texture_file_index)
