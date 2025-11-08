@@ -93,6 +93,7 @@ class Shaders:
 
     @staticmethod
     def diff_opac_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -100,8 +101,14 @@ class Shaders:
         uv0_map_node = nodes.new("ShaderNodeUVMap")
         uv0_map_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_map_node = nodes.new("ShaderNodeUVMap")
@@ -132,6 +139,7 @@ class Shaders:
     
     @staticmethod
     def diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -139,8 +147,14 @@ class Shaders:
         uv0_map_node = nodes.new("ShaderNodeUVMap")
         uv0_map_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_map_node = nodes.new("ShaderNodeUVMap")
@@ -192,6 +206,7 @@ class Shaders:
 
     @staticmethod
     def diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -199,8 +214,14 @@ class Shaders:
         uv0_map_node = nodes.new("ShaderNodeUVMap")
         uv0_map_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_map_node = nodes.new("ShaderNodeUVMap")
@@ -266,6 +287,7 @@ class Shaders:
 
     @staticmethod
     def diff_spec_opac_refl_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -273,8 +295,14 @@ class Shaders:
         uv0_map_node = nodes.new("ShaderNodeUVMap")
         uv0_map_node.uv_map = "TEXCOORD0"
 
+        t2_uv_node = nodes.new("ShaderNodeVectorMath")
+        t2_uv_node.operation = "MULTIPLY_ADD"
+        t2_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
+        t2_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        links.new(uv0_map_node.outputs["UV"], t2_uv_node.inputs["Vector"])
+
         t2 = textures[2] # Diffuse_Texture
-        links.new(uv0_map_node.outputs["UV"], t2.in_uv)
+        links.new(t2_uv_node.outputs["Vector"], t2.in_uv)
 
         # t7
         uv2_map_node = nodes.new("ShaderNodeUVMap")
@@ -441,6 +469,7 @@ class Shaders:
 
     @staticmethod
     def road_diff_spec_ovly_blur_detailscale_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -449,7 +478,7 @@ class Shaders:
 
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY"
-        t0_uv_node.inputs["Vector_001"].default_value = (1, -1, 0)
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], -c[0], 0)
         links.new(geometry_node.outputs["Position"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # TextureMap_4903
@@ -459,8 +488,14 @@ class Shaders:
         uv2_node = nodes.new("ShaderNodeUVMap")
         uv2_node.uv_map = "TEXCOORD2"
 
+        t1_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_uv_node.operation = "MULTIPLY_ADD"
+        t1_uv_node.inputs["Vector_001"].default_value = (c[1], c[2], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[2], 0)
+        links.new(uv2_node.outputs["UV"], t1_uv_node.inputs["Vector"])
+
         t1 = textures[1] # Diff_Spec02
-        links.new(uv2_node.outputs["UV"], t1.in_uv)
+        links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
 
         t7 = textures[7] # Light_Map
         links.new(uv2_node.outputs["UV"], t7.in_uv)
@@ -484,6 +519,7 @@ class Shaders:
 
     @staticmethod
     def road_diff_spec_ovly_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -497,15 +533,27 @@ class Shaders:
         uv0_node = nodes.new("ShaderNodeUVMap")
         uv0_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # TextureMap_4903
-        links.new(uv0_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t1, t7
         uv2_node = nodes.new("ShaderNodeUVMap")
         uv2_node.uv_map = "TEXCOORD2"
 
+        t1_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_uv_node.operation = "MULTIPLY_ADD"
+        t1_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        links.new(uv2_node.outputs["UV"], t1_uv_node.inputs["Vector"])
+
         t1 = textures[1] # Diff_Spec02
-        links.new(uv2_node.outputs["UV"], t1.in_uv)
+        links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
 
         t7 = textures[7] # Light_Map
         links.new(uv2_node.outputs["UV"], t7.in_uv)
@@ -565,6 +613,7 @@ class Shaders:
 
     @staticmethod
     def shldr_diff_spec_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -572,8 +621,14 @@ class Shaders:
         uv0_node = nodes.new("ShaderNodeUVMap")
         uv0_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_node = nodes.new("ShaderNodeUVMap")
@@ -626,6 +681,7 @@ class Shaders:
     # vegetation
     @staticmethod
     def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -633,8 +689,14 @@ class Shaders:
         uv0_map_node = nodes.new("ShaderNodeUVMap")
         uv0_map_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_map_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_node = nodes.new("ShaderNodeUVMap")
@@ -775,6 +837,7 @@ class Shaders:
 
     @staticmethod
     def diff_opac_clampv_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, out, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -782,8 +845,14 @@ class Shaders:
         uv0_node = nodes.new("ShaderNodeUVMap")
         uv0_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(uv0_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_node = nodes.new("ShaderNodeUVMap")
@@ -814,6 +883,7 @@ class Shaders:
 
     @staticmethod
     def terr_blnd_spec_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -821,11 +891,23 @@ class Shaders:
         uv0_node = nodes.new("ShaderNodeUVMap")
         uv0_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Blend_A
-        links.new(uv0_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+
+        t1_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_uv_node.operation = "MULTIPLY_ADD"
+        t1_uv_node.inputs["Vector_001"].default_value = (c[8], c[9], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[9], 0)
+        links.new(uv0_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Blend_B
-        links.new(uv0_node.outputs["UV"], t1.in_uv)
+        links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
 
         # t2, t7
         uv2_node = nodes.new("ShaderNodeUVMap")
@@ -1009,6 +1091,7 @@ class Shaders:
 
     @staticmethod
     def terr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
@@ -1016,18 +1099,36 @@ class Shaders:
         uv0_node = nodes.new("ShaderNodeUVMap")
         uv0_node.uv_map = "TEXCOORD0"
 
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[4], c[4], 0) # NodeSocketVector
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[4], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
         t0 = textures[0] # Blend_A
-        links.new(uv0_node.outputs["UV"], t0.in_uv)
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+
+        t3_uv_node = nodes.new("ShaderNodeVectorMath")
+        t3_uv_node.operation = "MULTIPLY_ADD"
+        t3_uv_node.inputs["Vector_001"].default_value = (c[6], c[6], 0)
+        t3_uv_node.inputs["Vector_002"].default_value = (0, -c[6], 0)
+        links.new(uv0_node.outputs["UV"], t3_uv_node.inputs["Vector"])
 
         t3 = textures[3] # Blend_C
-        links.new(uv0_node.outputs["UV"], t3.in_uv)
+        links.new(t3_uv_node.outputs["Vector"], t3.in_uv)
 
         # t1, t2
         uv1_node = nodes.new("ShaderNodeUVMap")
         uv1_node.uv_map = "TEXCOORD1"
 
+        t1_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_uv_node.operation = "MULTIPLY_ADD"
+        t1_uv_node.inputs["Vector_001"].default_value = (c[5], c[5], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        links.new(uv1_node.outputs["UV"], t1_uv_node.inputs["Vector"])
+
         t1 = textures[1] # Blend_B
-        links.new(uv1_node.outputs["UV"], t1.in_uv)
+        links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
 
         t2 = textures[2] # Blend_Value
         t2.nodes[0].image.colorspace_settings.name = "Non-Color"
