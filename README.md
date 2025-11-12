@@ -5,11 +5,11 @@ A Blender addon for porting racetracks, 3D models, and materials out of Forza an
 * Tracks
 
 ### Supported file formats
-* .pvs - track model instances and textures info
-* .stx.bin, .bin - CAFF textures
-* .fxobj - Effects Lite shaders
-* .rmb.bin - 3D geometry
-* .bix - textures
+* `.pvs` - track model instances and textures info
+* `.stx.bin`, .bin - CAFF textures
+* `.fxobj` - Effects Lite shaders
+* `.rmb.bin` - 3D geometry
+* `.bix` - textures
 
 ### Key features
 * Model instancing support
