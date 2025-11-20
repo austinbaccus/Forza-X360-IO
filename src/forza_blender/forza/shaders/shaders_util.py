@@ -4,16 +4,22 @@ from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.pvs.read_pvs import PVSTexture
 from forza_blender.forza.textures.texture_util import get_image_from_index
 
-class TextureNodeWrapper:
+class NodeWrapperTexture:
     def __init__(self, nodes: list[bpy.types.ShaderNodeTexImage], in_uv: bpy.types.NodeSocket, out_rgb: bpy.types.NodeSocket, out_a: bpy.types.NodeSocket):
         self.nodes = nodes
         self.in_uv = in_uv
         self.out_rgb = out_rgb
         self.out_a = out_a
 
+class NodeWrapperShader:
+    def __init__(self, node: bpy.types.ShaderNode, in_rgb: bpy.types.NodeSocket, out_shader: bpy.types.NodeSocket):
+        self.node = node
+        self.in_rgb = in_rgb
+        self.out_shader = out_shader
+
 def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folder_path, nodes, links, material_index: int):
     texture_indexes = forza_mesh.track_bin.material_sets[0].materials[material_index].texture_sampler_indices
-    textures: list[TextureNodeWrapper] = [None] * len(texture_indexes)
+    textures: list[NodeWrapperTexture] = [None] * len(texture_indexes)
 
     for i, texture_index in enumerate(texture_indexes):
         if texture_index == -2:
@@ -39,7 +45,7 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         texture_node = nodes.new("ShaderNodeTexImage")
         texture_node.label = F"t{i}"
         texture_node.image = loaded_texture_image
-        texture_node.image.alpha_mode = "CHANNEL_PACKED"
+        texture_node.image.colorspace_settings.name = "Non-Color"
 
         # if the image is from .stx.bin, create UV mapping node
         if is_stx and pvs_texture.u_scale != 1.0 and pvs_texture.v_scale != 1.0 and pvs_texture.u_translate != 0.0 and pvs_texture.v_translate != 0.0:
@@ -52,7 +58,7 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         else:
             in_uv = texture_node.inputs["Vector"]
 
-        textures[i] = TextureNodeWrapper([texture_node], in_uv, texture_node.outputs["Color"], texture_node.outputs["Alpha"])
+        textures[i] = NodeWrapperTexture([texture_node], in_uv, texture_node.outputs["Color"], texture_node.outputs["Alpha"])
 
     return textures
 
@@ -98,7 +104,7 @@ def generate_inherited_texture_nodes(forza_mesh: ForzaMesh, track_folder_path, n
         texture_node = nodes.new("ShaderNodeTexImage")
         texture_node.label = F"t{index}_{i}"
         texture_node.image = loaded_texture_image
-        texture_node.image.alpha_mode = "CHANNEL_PACKED"
+        texture_node.image.colorspace_settings.name = "Non-Color"
         links.new(uv_node.outputs["Vector"], texture_node.inputs["Vector"])
 
         mix_node = nodes.new("ShaderNodeMix")
@@ -112,7 +118,7 @@ def generate_inherited_texture_nodes(forza_mesh: ForzaMesh, track_folder_path, n
             links.new(prev_mix_node.outputs["Result"], mix_node.inputs["B"])
         prev_mix_node = mix_node
 
-    return TextureNodeWrapper(texture_nodes, uv_node.inputs["Vector"], prev_mix_node.outputs["Result"], None)
+    return NodeWrapperTexture(texture_nodes, uv_node.inputs["Vector"], prev_mix_node.outputs["Result"], None)
 
 def attach_uv_map_node(mat, x, y, uvmap, target_node_idx):
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
