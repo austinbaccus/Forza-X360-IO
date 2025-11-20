@@ -1,7 +1,12 @@
+import math
 import bpy # type: ignore
 from mathutils import Color # type: ignore
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.shaders.shaders_util import *
+
+# TrackSettings.xml
+dark_color = (0, 0, 0)
+light_color = (1.93, 1.93, 1.9)
 
 def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, track_folder_path):
     materials = []
@@ -32,13 +37,58 @@ class Shaders:
         # nodes
         nodes.clear()
         textures = generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
-        bsdf = nodes.new("ShaderNodeEmission")
-        out = nodes.new("ShaderNodeOutputMaterial"); out.location = (600, 0)
 
-        # link
+        color_node = nodes.new("NodeReroute")
+
+        # color < 0.04045
+        cmp_sub_node = nodes.new("ShaderNodeVectorMath")
+        cmp_sub_node.operation = "SUBTRACT"
+        cmp_sub_node.inputs["Vector"].default_value = (0.04045, 0.04045, 0.04045)
+        links.new(color_node.outputs["Output"], cmp_sub_node.inputs["Vector_001"])
+
+        cmp_mul_node = nodes.new("ShaderNodeVectorMath")
+        cmp_mul_node.operation = "MULTIPLY"
+        cmp_mul_node.inputs["Vector_001"].default_value = (math.inf, math.inf, math.inf)
+        links.new(cmp_sub_node.outputs["Vector"], cmp_mul_node.inputs["Vector"])
+
+        # power
+        power_add_node = nodes.new("ShaderNodeVectorMath")
+        power_add_node.inputs["Vector_001"].default_value = (0.055, 0.055, 0.055)
+        links.new(color_node.outputs["Output"], power_add_node.inputs["Vector"])
+
+        power_div_node = nodes.new("ShaderNodeVectorMath")
+        power_div_node.operation = "DIVIDE"
+        power_div_node.inputs["Vector_001"].default_value = (1.055, 1.055, 1.055)
+        links.new(power_add_node.outputs["Vector"], power_div_node.inputs["Vector"])
+
+        power_node = nodes.new("ShaderNodeVectorMath")
+        power_node.operation = "POWER"
+        power_node.inputs["Vector_001"].default_value = (2.4, 2.4, 2.4)
+        links.new(power_div_node.outputs["Vector"], power_node.inputs["Vector"])
+
+        # linear
+        linear_node = nodes.new("ShaderNodeVectorMath")
+        linear_node.operation = "DIVIDE"
+        linear_node.inputs["Vector_001"].default_value = (12.92, 12.92, 12.92)
+        links.new(color_node.outputs["Output"], linear_node.inputs["Vector"])
+
+        # sRGB to linear
+        mix_node = nodes.new("ShaderNodeMix")
+        mix_node.data_type = "VECTOR"
+        mix_node.factor_mode = "NON_UNIFORM"
+        links.new(cmp_mul_node.outputs["Vector"], mix_node.inputs["Factor"])
+        links.new(power_node.outputs["Vector"], mix_node.inputs["A"])
+        links.new(linear_node.outputs["Vector"], mix_node.inputs["B"])
+
+        bsdf = nodes.new("ShaderNodeEmission")
+        links.new(mix_node.outputs["Result"], bsdf.inputs["Color"])
+
+        out = nodes.new("ShaderNodeOutputMaterial")
         links.new(bsdf.outputs["Emission"], out.inputs["Surface"])
 
-        return mat, out, bsdf, textures
+        bsdf_wrapper = NodeWrapperShader(bsdf, color_node.inputs["Input"], bsdf.outputs["Emission"])
+
+        return mat, out, bsdf_wrapper, textures
     
     @staticmethod
     def unknown(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
@@ -54,19 +104,24 @@ class Shaders:
 
             links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
+            light_map_remap_node = nodes.new("ShaderNodeMix")
+            light_map_remap_node.data_type = "VECTOR"
+            light_map_remap_node.factor_mode = "NON_UNIFORM"
+            light_map_remap_node.inputs["A"].default_value = dark_color
+            light_map_remap_node.inputs["B"].default_value = light_color
+            links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
             if t0 is not None:
-                # blend
                 light_map_mix_node = nodes.new("ShaderNodeVectorMath")
                 light_map_mix_node.operation = "MULTIPLY"
                 links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-                links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+                links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-                # BSDF
-                links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+                links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
             else:
-                links.new(t7.out_rgb, bsdf.inputs["Color"])
+                links.new(light_map_remap_node.outputs["Result"], bsdf.in_rgb)
         elif t0 is not None:
-            links.new(t0.out_rgb, bsdf.inputs["Color"])
+            links.new(t0.out_rgb, bsdf.in_rgb)
 
         return mat
 
@@ -77,9 +132,14 @@ class Shaders:
     def clr_0(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, _ = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
-        diffuse_color = Color((c[0], c[1], c[2])).from_srgb_to_scene_linear()
-        bsdf.inputs["Color"].default_value = (diffuse_color.r, diffuse_color.g, diffuse_color.b, 1)
+        diffuse_color_node = nodes.new("ShaderNodeCombineXYZ")
+        diffuse_color_node.inputs["X"].default_value = c[0]
+        diffuse_color_node.inputs["Y"].default_value = c[1]
+        diffuse_color_node.inputs["Z"].default_value = c[2]
+
+        links.new(diffuse_color_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -95,10 +155,9 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs[0])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -129,20 +188,32 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t0_mul_node = nodes.new("ShaderNodeVectorMath")
+        t0_mul_node.operation = "MULTIPLY"
+        t0_mul_node.inputs["Vector_001"].default_value = (c[2], c[2], c[2])
+        links.new(t0.out_rgb, t0_mul_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(t0_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -175,20 +246,27 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -197,21 +275,21 @@ class Shaders:
     @staticmethod
     def diff_opac_2_nolm(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
         # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clampuv_nolm_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
         # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
     
     @staticmethod
     def diff_opac_clamp_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
         # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
         return mat
 
@@ -242,12 +320,24 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t0_mul_node = nodes.new("ShaderNodeVectorMath")
+        t0_mul_node.operation = "MULTIPLY"
+        t0_mul_node.inputs["Vector_001"].default_value = (c[2], c[2], c[2])
+        links.new(t0.out_rgb, t0_mul_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(t0_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -267,7 +357,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
 
@@ -291,7 +381,7 @@ class Shaders:
         links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
-        links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         # links.new(roughness_node.out_rgb, bsdf.inputs[2])
 
         return mat
@@ -323,20 +413,37 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t2_mul_node = nodes.new("ShaderNodeVectorMath")
+        t2_mul_node.operation = "MULTIPLY"
+        t2_mul_node.inputs["Vector_001"].default_value = (c[3], c[3], c[3])
+        links.new(t2.out_rgb, t2_mul_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t2.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(t2_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
+
+        transparency_remap_node = nodes.new("ShaderNodeMix")
+        transparency_remap_node.inputs["A"].default_value = c[6]
+        transparency_remap_node.inputs["B"].default_value = 1
+        links.new(t2.out_a, transparency_remap_node.inputs["Factor"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
-        links.new(t2.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparency_remap_node.outputs["Result"], transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -355,7 +462,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        mat.node_tree.links.new(darken_node.outputs[0], bsdf.inputs["Color"])
+        mat.node_tree.links.new(darken_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, darken_node.inputs[1])
         mat.node_tree.links.new(shadow_node.out_rgb, darken_node.inputs[2])
         # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
@@ -390,20 +497,27 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -466,20 +580,32 @@ class Shaders:
         links.new(t0.out_rgb, palette_mul_node.inputs["Vector"])
         links.new(palette_mix_node.outputs["Result"], palette_mul_node.inputs["Vector_001"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(palette_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
+
+        transparency_remap_node = nodes.new("ShaderNodeMath")
+        transparency_remap_node.operation = "MULTIPLY"
+        transparency_remap_node.inputs["Value_001"].default_value = c[2]
+        links.new(t0.out_a, transparency_remap_node.inputs["Value"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
-        links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparency_remap_node.outputs["Value"], transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -531,6 +657,11 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t0_mul_node = nodes.new("ShaderNodeVectorMath")
+        t0_mul_node.operation = "MULTIPLY"
+        t0_mul_node.inputs["Vector_001"].default_value = (c[2], c[2], c[2])
+        links.new(t0.out_rgb, t0_mul_node.inputs["Vector"])
+
         palette_mix_node = nodes.new("ShaderNodeMix")
         palette_mix_node.data_type = "VECTOR"
         links.new(t1.out_rgb, palette_mix_node.inputs["Factor"])
@@ -539,15 +670,22 @@ class Shaders:
 
         palette_mul_node = nodes.new("ShaderNodeVectorMath")
         palette_mul_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, palette_mul_node.inputs["Vector"])
+        links.new(t0_mul_node.outputs["Vector"], palette_mul_node.inputs["Vector"])
         links.new(palette_mix_node.outputs["Result"], palette_mul_node.inputs["Vector_001"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
 
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(palette_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -565,11 +703,11 @@ class Shaders:
 
         # link
         #links.new(uv_map_node.outputs["UV"], shadow_node.in_uv)
-        #links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        #links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         #links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         #links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
         # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
-        links.new(diffuse_node.out_rgb, bsdf.inputs[0])
+        links.new(diffuse_node.out_rgb, bsdf.in_rgb)
 
         return mat
 
@@ -585,7 +723,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
@@ -604,7 +742,7 @@ class Shaders:
 
         # link
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
-        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.inputs["Color"])
+        mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
         # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
@@ -638,12 +776,30 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        glow_remap_node = nodes.new("ShaderNodeMath")
+        glow_remap_node.operation = "MULTIPLY_ADD"
+        glow_remap_node.inputs["Value_001"].default_value = c[0]
+        glow_remap_node.inputs["Value_002"].default_value = 1
+        links.new(t0.out_a, glow_remap_node.inputs["Value"])
+
+        glow_mix_node = nodes.new("ShaderNodeVectorMath")
+        glow_mix_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, glow_mix_node.inputs["Vector"])
+        links.new(glow_remap_node.outputs["Value"], glow_mix_node.inputs["Vector_001"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(glow_mix_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -679,7 +835,7 @@ class Shaders:
         links.new(tiremarks_node.out_rgb, mix_rgb_node.inputs[2])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_rgb_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -724,12 +880,19 @@ class Shaders:
         links.new(t1.out_rgb, overlay_t1_t0_node.inputs["A"])
         links.new(t0.out_rgb, overlay_t1_t0_node.inputs["B"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(overlay_t1_t0_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -782,12 +945,19 @@ class Shaders:
         links.new(t1.out_rgb, overlay_t1_t0_node.inputs["A"])
         links.new(t0.out_rgb, overlay_t1_t0_node.inputs["B"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(overlay_t1_t0_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
     
@@ -805,7 +975,7 @@ class Shaders:
         # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
         
         return mat
 
@@ -836,20 +1006,32 @@ class Shaders:
         links.new(uv2_map_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t0_mul_node = nodes.new("ShaderNodeVectorMath")
+        t0_mul_node.operation = "MULTIPLY"
+        t0_mul_node.inputs["Vector_001"].default_value = (c[2], c[2], c[2])
+        links.new(t0.out_rgb, t0_mul_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(t0_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
         
@@ -917,12 +1099,19 @@ class Shaders:
         links.new(t2.out_rgb, overlay_t2_node.inputs["A"])
         links.new(mix_a_b_node.outputs["Result"], overlay_t2_node.inputs["B"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(overlay_t2_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -953,12 +1142,24 @@ class Shaders:
         links.new(uv2_node.outputs["UV"], t7.in_uv)
 
         # blend
+        t0_mul_node = nodes.new("ShaderNodeVectorMath")
+        t0_mul_node.operation = "MULTIPLY"
+        t0_mul_node.inputs["Vector_001"].default_value = (c[2], c[2], c[2])
+        links.new(t0.out_rgb, t0_mul_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(t0_mul_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -984,7 +1185,7 @@ class Shaders:
         links.new(tiremarks_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], mix_darken2_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken2_node.inputs[2])
-        links.new(mix_darken2_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken2_node.outputs[0], bsdf.in_rgb)
         links.new(tex_coord_node.outputs[2], map_node.inputs["Vector"])
         links.new(map_node.outputs[0], diffuse_node.in_uv)
         links.new(uv_map_node.outputs[0], shadow_node.in_uv)
@@ -1037,12 +1238,19 @@ class Shaders:
         links.new(t1.out_rgb, overlay_t2_t0_node.inputs["A"])
         links.new(t0.out_rgb, overlay_t2_t0_node.inputs["B"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(overlay_t2_t0_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -1066,7 +1274,7 @@ class Shaders:
         links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
 
         # BSDF
-        links.new(t0.out_rgb, bsdf.inputs["Color"])
+        links.new(t0.out_rgb, bsdf.in_rgb)
 
         return mat
 
@@ -1099,20 +1307,27 @@ class Shaders:
         links.new(uv2_node.outputs["UV"], t7.in_uv)
 
         # blend
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -1139,14 +1354,14 @@ class Shaders:
         links.new(uv0_map_node.outputs["UV"], t0.in_uv)
 
         # BSDF
-        links.new(t0.out_rgb, bsdf.inputs["Color"])
+        links.new(t0.out_rgb, bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -1185,7 +1400,7 @@ class Shaders:
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         
         # links
-        mat.node_tree.links.new(textures[0].out_rgb, bsdf.inputs["Color"])
+        mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
 
         return mat
 
@@ -1226,7 +1441,7 @@ class Shaders:
         links.new(separate_colors_node.outputs[2], mix_mask_node.inputs[0]) # separate blue for camino viejo
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
         links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -1257,20 +1472,27 @@ class Shaders:
         links.new(uv2_node.outputs["UV"], t7.in_uv)
 
         # blend
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         # BSDF
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
 
         transparency_mix_node = nodes.new("ShaderNodeMixShader")
         links.new(t0.out_a, transparency_mix_node.inputs["Fac"])
         links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.outputs["Emission"], transparency_mix_node.inputs["Shader_001"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
 
         links.new(transparency_mix_node.outputs["Shader"], out.inputs["Surface"])
 
@@ -1323,12 +1545,19 @@ class Shaders:
         links.new(t0.out_rgb, mix_a_b_node.inputs["A"])
         links.new(t1.out_rgb, mix_a_b_node.inputs["B"])
 
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
         links.new(mix_a_b_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 
@@ -1366,7 +1595,7 @@ class Shaders:
         links.new(separate_colors_node.outputs[2], mix_mask_node.inputs[0]) # separate blue for camino viejo
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
         links.new(amb_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -1405,7 +1634,7 @@ class Shaders:
         links.new(mask_node.out_rgb, mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
         links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
 
         return mat
@@ -1445,7 +1674,7 @@ class Shaders:
         links.new(mask_node.out_rgb, mix_mask_node.inputs[0])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
         links.new(ambient_occlusion_node.out_rgb, mix_darken_node.inputs[2])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -1480,7 +1709,7 @@ class Shaders:
         links.new(grass_node.out_rgb, mix_mask_node.inputs[1])
         links.new(rock1_node.out_rgb, mix_mask_node.inputs[2])
         links.new(mix_mask_node.outputs[0], mix_darken_node.inputs[1])
-        links.new(mix_darken_node.outputs[0], bsdf.inputs[0])
+        links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
 
         return mat
 
@@ -1552,11 +1781,28 @@ class Shaders:
         links.new(mix_a_b_node.outputs["Result"], mix_c_node.inputs["A"])
         links.new(t3.out_rgb, mix_c_node.inputs["B"])
 
+        mix_blend_value_r_node = nodes.new("ShaderNodeVectorMath")
+        mix_blend_value_r_node.operation = "MULTIPLY"
+        links.new(mix_c_node.outputs["Result"], mix_blend_value_r_node.inputs["Vector"])
+        links.new(blend_value_separate_node.outputs["X"], mix_blend_value_r_node.inputs["Vector_001"])
+
+        diffuse_remap_node = nodes.new("ShaderNodeVectorMath")
+        diffuse_remap_node.operation = "MULTIPLY"
+        diffuse_remap_node.inputs["Vector_001"].default_value = (c[0] * c[10], c[1] * c[10], c[2] * c[10])
+        links.new(mix_blend_value_r_node.outputs["Vector"], diffuse_remap_node.inputs["Vector"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
         light_map_mix_node = nodes.new("ShaderNodeVectorMath")
         light_map_mix_node.operation = "MULTIPLY"
-        links.new(mix_c_node.outputs["Result"], light_map_mix_node.inputs["Vector"])
-        links.new(t7.out_rgb, light_map_mix_node.inputs["Vector_001"])
+        links.new(diffuse_remap_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
-        links.new(light_map_mix_node.outputs["Vector"], bsdf.inputs["Color"])
+        links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
