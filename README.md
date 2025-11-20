@@ -1,4 +1,4 @@
-# Forza Studio
+# Blender Forza Xbox 360 Era Importer
 A Blender addon for porting racetracks, 3D models, and materials out of Forza and into Blender.
 
 ### Supported resources
