@@ -4,6 +4,8 @@ class Deswizzler:
     def get_block_info(d3d_format: int):
         gpu_format = d3d_format & 0x3F
         match gpu_format:
+            case 2: # 8
+                return 1, 1
             case 6: # 8_8_8_8
                 return 1, 4
             case 18 | 59: # DXT1, DXT5A
@@ -26,7 +28,8 @@ class Deswizzler:
             width_alignment = max(256 // texel_pitch, 32)
         aligned_width = (width_in_blocks + width_alignment - 1) & ~(width_alignment - 1)
         aligned_height = (height_in_blocks + 31) & ~31
-        return aligned_width * aligned_height * texel_pitch
+        size = aligned_width * aligned_height * texel_pitch
+        return (size + 4095) & ~4095
 
     def XGUntileSurfaceToLinearTexture(data: np.ndarray, width: int, height: int, d3d_format: int, levels: int):
         block_size, texel_pitch = Deswizzler.get_block_info(d3d_format)

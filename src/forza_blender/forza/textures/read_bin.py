@@ -247,7 +247,7 @@ class CAFF:
                 dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
             elif endian == 2: # GPUENDIAN_8IN32
                 dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-            else:
+            elif endian != 0: # GPUENDIAN_NONE
                 raise RuntimeError("Unknown texture format endian")
 
             blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, texture.texture_format, texture.levels)
@@ -267,6 +267,8 @@ class CAFF:
                     dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM
                 case 673710470 | 673742470 | 673742726: # D3DFMT_X8R8G8B8, D3DFMT_LIN_X8R8G8B8, MAKESRGBFMT(D3DFMT_X8R8G8B8)
                     dds = Bix.wrap_as_dds_dx10_bc(88, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
+                case 671088898: # D3DFMT_L8
+                    dds = Bix.wrap_as_dds_dx10_bc(61, blocks, texture.width, texture.height) # DXGI_FORMAT_R8_UNORM
                 case _:
                     print("Unsupported D3D format:", texture.texture_format)
                     dds = None
