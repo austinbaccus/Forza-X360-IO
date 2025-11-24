@@ -54,7 +54,7 @@ class Bix():
             dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
         elif endian == 2: # GPUENDIAN_8IN32
             dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-        else:
+        elif endian != 0: # GPUENDIAN_NONE
             raise RuntimeError("Unknown texture format endian")
 
         blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, format, levels)
@@ -72,6 +72,8 @@ class Bix():
                 dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
             case 673710470: # D3DFMT_X8R8G8B8
                 dds = Bix.wrap_as_dds_dx10_bc(88, blocks, width, height) # DXGI_FORMAT_B8G8R8X8_UNORM
+            case 671088898: # D3DFMT_L8
+                dds = Bix.wrap_as_dds_dx10_bc(61, blocks, width, height) # DXGI_FORMAT_R8_UNORM
             case _:
                 print("Unsupported D3D format:", format)
                 return None
