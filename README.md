@@ -27,8 +27,8 @@ A Blender addon for porting racetracks, 3D models, and materials out of Forza an
 | `Forza Motorsport 2`         | ⚠️ | Future support is possible, but not currently planned. |
 | `Forza Motorsport 3`         | ✅ | Supported. |
 | `Forza Motorsport 4`         | ✅ | Supported. |
-| `Forza Motorsport 5`         | ❌ | FM5 has no worthwhile tracks to export that are not in later games in higher fidelity. |
-| `Forza Motorsport 6`         | ❌ | FM6 has no worthwhile tracks to export that are not in later games in higher fidelity. |
+| `Forza Motorsport 5`         | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Motorsport 6`         | ⚠️ | Future support is possible, but not currently planned. |
 | `Forza Motorsport 7`         | ⚠️ | Future support is possible, but not currently planned. |
 | `Forza Motorsport (2023)`    | ⚠️ | Future support is possible, but not currently planned. |
 | `Forza Horizon 1`            | ⚠️ | Support is planned. |
