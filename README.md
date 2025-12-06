@@ -23,21 +23,21 @@ A Blender addon for porting racetracks, 3D models, and materials out of Forza an
 ### Which Forza games are supported?
 | Game | Supported | Notes |
 |-|-|-|
-| `Forza Motorsport 1`         | ❌ | Future support is possible, but not currently planned. Mostly because nobody knows know how to extract FM1 tracks. |
-| `Forza Motorsport 2`         | ❌ | Future support is possible, but not currently planned. |
+| `Forza Motorsport 1`         | ⚠️ | Future support is possible, but not currently planned. Mostly because nobody knows know how to extract FM1 tracks. |
+| `Forza Motorsport 2`         | ❌ | Will not be supported. No worthwhile tracks for exporting. |
 | `Forza Motorsport 3`         | ✅ | Supported. |
 | `Forza Motorsport 4`         | ✅ | Supported. |
-| `Forza Motorsport 5`         | ❌ | Future support is possible, but not currently planned. |
-| `Forza Motorsport 6`         | ❌ | Future support is possible, but not currently planned. |
-| `Forza Motorsport 7`         | ❌ | Future support is possible, but not currently planned. |
-| `Forza Motorsport (2023)`    | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 1`            | ⚠️ | Support is in-progress. |
-| `Forza Horizon 2 (Xbox 360)` | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 2 (Xbox One)` | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 3`            | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 4`            | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 5`            | ❌ | Future support is possible, but not currently planned. |
-| `Forza Horizon 6`            | ❌ | Future support is possible, but not currently planned. |
+| `Forza Motorsport 5`         | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Motorsport 6`         | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Motorsport 7`         | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Motorsport (2023)`    | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Horizon 1`            | ⏳ | Support is in-progress. |
+| `Forza Horizon 2 (Xbox 360)` | ❌ | Will not be supported. |
+| `Forza Horizon 2 (Xbox One)` | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Horizon 3`            | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Horizon 4`            | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Horizon 5`            | ⚠️ | Future support is possible, but not currently planned. |
+| `Forza Horizon 6`            | ⚠️ | Future support is possible, but not currently planned. |
 
 ### Credits
 Developers
