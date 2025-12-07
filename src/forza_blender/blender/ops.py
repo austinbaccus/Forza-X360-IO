@@ -266,9 +266,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
             _add_mesh_to_scene(context, mesh, collection)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
-        if (i + 1) % 100 == 0:
-            print(f"[{i + 1}/{len(models_to_load)}]")
-            bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes imported")
+        if (i + 1) % 100 == 0 or i + 1 == len(models_to_load):
+            msg: str = f"[{i + 1}/{len(models_to_load)}] meshes added to scene"
+            print(msg); bpy.context.workspace.status_text_set(f"[{i + 1}/{len(models_to_load)}] meshes added to scene")
 
     # collections
     root_layer_collection = bpy.context.view_layer.layer_collection
