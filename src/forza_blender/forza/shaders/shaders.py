@@ -1842,6 +1842,7 @@ class Shaders:
         links.new(blend_value_separate_node.outputs["X"], mix_blend_value_r_node.inputs["Vector_001"])
 
         diffuse_remap_node = nodes.new("ShaderNodeVectorMath")
+        diffuse_remap_node.name = "DiffuseRemap"
         diffuse_remap_node.operation = "MULTIPLY"
         diffuse_remap_node.inputs["Vector_001"].default_value = (c[0] * c[10], c[1] * c[10], c[2] * c[10])
         links.new(mix_blend_value_r_node.outputs["Vector"], diffuse_remap_node.inputs["Vector"])
@@ -1867,7 +1868,7 @@ class Shaders:
         mat = Shaders.terr_blnd_spec_norm_5(forza_mesh, path_last_texture_folder, shader_name, material_index)
         nodes = mat.node_tree.nodes
 
-        diffuse_remap_node = nodes["ShaderNodeVectorMath"]
+        diffuse_remap_node = nodes["DiffuseRemap"]
         diffuse_remap_node.inputs["Vector_001"].default_value = (1, 1, 1)
 
         return mat
