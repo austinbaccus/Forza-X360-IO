@@ -127,7 +127,7 @@ class Shaders:
 
 
 
-    # basic
+#region basic
     @staticmethod
     def clr_0(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
@@ -802,18 +802,16 @@ class Shaders:
         links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
+#endregion
 
-
-
-    # ocean
+#region ocean
     @staticmethod
     def ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, _, _ = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         return mat
+#endregion
 
-
-
-    # road
+#region road
     @staticmethod
     def road_blnd_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         return Shaders.road_diff_spec_ovly_blur_detailscale_2(forza_mesh, path_last_texture_folder, shader_name, material_index)
@@ -971,11 +969,18 @@ class Shaders:
         shadow_node = textures[7]
         mix_darken_node = nodes.new(type='ShaderNodeMixRGB'); mix_darken_node.location = (600, 150); mix_darken_node.blend_type = 'DARKEN'
 
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+
         # links
-        # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, mix_darken_node.inputs[1])
         links.new(shadow_node.out_rgb, mix_darken_node.inputs[2])
         links.new(mix_darken_node.outputs[0], bsdf.in_rgb)
+
+        links.new(diffuse_node.out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
+        links.new(transparency_mix_node.outputs["Shader"], _.inputs["Surface"])
         
         return mat
 
@@ -1277,9 +1282,9 @@ class Shaders:
         links.new(t0.out_rgb, bsdf.in_rgb)
 
         return mat
+#endregion
 
-
-    # vegetation
+#region vegetation
     @staticmethod
     def bush_diff_opac_2_2sd(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
@@ -1403,10 +1408,9 @@ class Shaders:
         mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
 
         return mat
+#endregion
 
-
-
-    # terrain
+#region terrain
     @staticmethod
     def shldr_blnd_spec_vclr_mix_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
@@ -1806,3 +1810,4 @@ class Shaders:
         links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
+#endregion
