@@ -282,38 +282,26 @@ class Shaders:
     def diff_opac_2_nolm(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+
+        mat = add_opacity(mat, bsdf, _, textures[0])
+        
         return mat
     
     @staticmethod
     def diff_opac_clampuv_nolm_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
         mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
-        nodes, links = mat.node_tree.nodes, mat.node_tree.links
         
-        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
-        transparency_mix_node = nodes.new("ShaderNodeMixShader")
-
-        links.new(textures[0].out_a, transparency_mix_node.inputs["Fac"])
-        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
-        links.new(transparency_mix_node.outputs["Shader"], _.inputs["Surface"])
+        mat = add_opacity(mat, bsdf, _, textures[0])
         
         return mat
     
     @staticmethod
     def diff_opac_clamp_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
-        nodes, links = mat.node_tree.nodes, mat.node_tree.links
         mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
-
-        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
-        transparency_mix_node = nodes.new("ShaderNodeMixShader")
-
-        links.new(textures[0].out_a, transparency_mix_node.inputs["Fac"])
-        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
-        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
-        links.new(transparency_mix_node.outputs["Shader"], _.inputs["Surface"])
+        
+        mat = add_opacity(mat, bsdf, _, textures[0])
 
         return mat
 
@@ -489,8 +477,8 @@ class Shaders:
         mat.node_tree.links.new(darken_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, darken_node.inputs[1])
         mat.node_tree.links.new(shadow_node.out_rgb, darken_node.inputs[2])
-        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
-        # mat.node_tree.links.new(roughness_node.out_rgb, bsdf.inputs[2])
+        
+        mat = add_opacity(mat, bsdf, _, diffuse_node)
 
         return mat  
 
@@ -732,6 +720,8 @@ class Shaders:
         #links.new(shadow_node.out_rgb, mix_rgb_node.inputs[2])
         # links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         links.new(diffuse_node.out_rgb, bsdf.in_rgb)
+        
+        mat = add_opacity(mat, bsdf, _, diffuse_node)
 
         return mat
 
@@ -749,8 +739,9 @@ class Shaders:
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
-        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
+
+        mat = add_opacity(mat, bsdf, _, diffuse_node)
 
         return mat
     
@@ -768,8 +759,9 @@ class Shaders:
         mat.node_tree.links.new(uv_map_node.outputs["UV"], ambient_occlusion_node.in_uv)
         mat.node_tree.links.new(mix_rgb_node.outputs[0], bsdf.in_rgb)
         mat.node_tree.links.new(diffuse_node.out_rgb, mix_rgb_node.inputs[1])
-        # mat.node_tree.links.new(diffuse_node.out_a, bsdf.inputs['Alpha'])
         mat.node_tree.links.new(ambient_occlusion_node.out_rgb, mix_rgb_node.inputs[2])
+
+        mat = add_opacity(mat, bsdf, _, diffuse_node)
 
         return mat
     

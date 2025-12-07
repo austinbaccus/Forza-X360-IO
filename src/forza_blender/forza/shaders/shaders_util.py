@@ -140,3 +140,17 @@ def attach_mix_node(mat, x, y, diffuse_node, shadow_node, output_node = None, ou
     links.new(shadow_node.outputs[0], mix_darken_node.inputs[2])
     links.new(mix_darken_node.inputs[2], mix_darken_node.inputs[2])
     if output_node is not None: links.new(mix_darken_node.outputs[0], output_node.inputs[output_idx_input_idx])
+
+def add_opacity(mat, bsdf, output, transparent_node):
+    nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+    transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+    transparency_mix_node = nodes.new("ShaderNodeMixShader")
+
+    # links
+    links.new(transparent_node.out_a, transparency_mix_node.inputs["Fac"])
+    links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+    links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
+    links.new(transparency_mix_node.outputs["Shader"], output.inputs["Surface"])
+
+    return mat
