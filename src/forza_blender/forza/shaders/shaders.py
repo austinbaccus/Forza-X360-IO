@@ -295,8 +295,17 @@ class Shaders:
     @staticmethod
     def diff_opac_clamp_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
         mat.node_tree.links.new(textures[0].out_rgb, bsdf.in_rgb)
-        # mat.node_tree.links.new(textures[0].out_a, bsdf.inputs["Alpha"])
+
+        transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
+        transparency_mix_node = nodes.new("ShaderNodeMixShader")
+
+        links.new(textures[0].out_a, transparency_mix_node.inputs["Fac"])
+        links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
+        links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
+        links.new(transparency_mix_node.outputs["Shader"], _.inputs["Surface"])
+
         return mat
 
     @staticmethod
