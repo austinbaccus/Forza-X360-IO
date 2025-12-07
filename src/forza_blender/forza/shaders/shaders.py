@@ -895,6 +895,57 @@ class Shaders:
         return mat
 
     @staticmethod
+    def shldr_blnd_uv2_spec_clipped_3(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+
+        t0 = textures[0] if textures else None # Diffuse_Texture
+        t7 = textures[7] if len(textures) >= 7 else None # Light_Map
+
+        if t7 is not None:
+            uv2_map_node = nodes.new("ShaderNodeUVMap")
+            uv2_map_node.uv_map = "TEXCOORD2"
+
+            links.new(uv2_map_node.outputs["UV"], t7.in_uv)
+
+            light_map_remap_node = nodes.new("ShaderNodeMix")
+            light_map_remap_node.data_type = "VECTOR"
+            light_map_remap_node.factor_mode = "NON_UNIFORM"
+            light_map_remap_node.inputs["A"].default_value = dark_color
+            light_map_remap_node.inputs["B"].default_value = light_color
+            links.new(t7.out_rgb, light_map_remap_node.inputs["Factor"])
+
+            if t0 is not None:
+                light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+                light_map_mix_node.operation = "MULTIPLY"
+                links.new(t0.out_rgb, light_map_mix_node.inputs["Vector"])
+                links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
+
+                links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
+            else:
+                links.new(light_map_remap_node.outputs["Result"], bsdf.in_rgb)
+        elif t0 is not None:
+            links.new(t0.out_rgb, bsdf.in_rgb)
+
+
+
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
+
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
+        t0 = textures[0] # TextureMap_4903
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+
+        return mat
+
+    @staticmethod
     def road_diff_spec_ovly_2(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
         c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
         mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
@@ -1808,6 +1859,16 @@ class Shaders:
         links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
+
+        return mat
+    
+    @staticmethod
+    def shldr_blnd_spec_norm_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        mat = Shaders.terr_blnd_spec_norm_5(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes = mat.node_tree.nodes
+
+        diffuse_remap_node = nodes["ShaderNodeVectorMath"]
+        diffuse_remap_node.inputs["Vector_001"].default_value = (1, 1, 1)
 
         return mat
 #endregion
