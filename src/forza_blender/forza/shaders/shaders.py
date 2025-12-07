@@ -19,9 +19,15 @@ def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, track_folder_path
 
         func = getattr(Shaders, shader_filename_simple, None)
         if callable(func):
-            materials.append(func(*args))
+            try:
+                materials.append(func(*args))
+            except:
+                materials.append(bpy.data.materials.new(material_name))
         else:
-            materials.append(Shaders.unknown(forza_mesh, track_folder_path, material_name, sub.material_index))
+            try:
+                materials.append(Shaders.unknown(forza_mesh, track_folder_path, material_name, sub.material_index))
+            except:
+                materials.append(bpy.data.materials.new(material_name))
     return materials
 
 
