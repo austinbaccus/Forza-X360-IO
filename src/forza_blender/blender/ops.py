@@ -104,18 +104,10 @@ class FORZA_OT_generate_textures(Operator):
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
-            path_textures: Path = list(path_bin.glob("*.bix"))
+            path_textures: list[Path] = list(path_bin.glob("*.bix"))
+            path_bin_textures: list[Path] = list(path_bin.glob("*.bin"))
+
             _populate_indexed_textures_from_track(path_textures, save_files=True)
-        return {'FINISHED'}
-    
-class FORZA_OT_generate_bin_textures(Operator):
-    bl_idname = "forza.generate_bin_textures"
-    bl_label = "Generate .BIN Textures"
-    
-    def execute(self, context):
-        if context.scene.forza_selection == "FM3":
-            path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
-            path_bin_textures: Path = list(path_bin.glob("*.bin"))
 
             filtered_path_bin_textures = [
                 f for f in path_bin_textures 
@@ -188,7 +180,7 @@ class FORZA_OT_pick_texture_folder(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-classes = (FORZA_OT_track_import,FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_generate_textures,FORZA_OT_generate_bin_textures,FORZA_OT_track_import_modal)
+classes = (FORZA_OT_track_import,FORZA_OT_pick_track_folder,FORZA_OT_pick_ribbon_folder,FORZA_OT_pick_texture_folder,FORZA_OT_generate_textures,FORZA_OT_track_import_modal)
 
 
 def register():
