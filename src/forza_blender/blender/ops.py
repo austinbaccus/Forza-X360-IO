@@ -214,22 +214,22 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         texture_files[i] = (pvs_texture, file_index, is_stx)
 
     # figure out which models need to be loaded
-    pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
-    pvs_model_instances.extend([model_instance for model_instance in pvs.lone_models_instances])
-    unique_model_indexes = set([model_instance.model_index for model_instance in pvs_model_instances])
+    pvs_model_instances = [(i, model_instance) for i, model_instance in enumerate(pvs.models_instances) if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances.extend([(None, model_instance) for model_instance in pvs.lone_models_instances])
+    unique_model_indexes = set([model_instance.model_index for _, model_instance in pvs_model_instances])
     models_to_load = [(model_index, pvs.models[model_index], F"{model_index:05d}") for model_index in unique_model_indexes]
     model_meshes: list[list[ForzaMesh] | None] = [None] * len(pvs.models)
 
     # add the skybox to the list of models to load (if it exists)
     if pvs.sky_model is not None:
         pvs.sky_model_instance.model_index = len(model_meshes)
-        pvs_model_instances.append(pvs.sky_model_instance)
+        pvs_model_instances.append((None, pvs.sky_model_instance))
         models_to_load.append((pvs.sky_model_instance.model_index, pvs.sky_model, "sky"))
         model_meshes.append(None)
 
     # collect inherited textures
     models_inherited_textures = [list() for _ in range(len(model_meshes))]
-    for i, pvs_model_instance in enumerate(pvs_model_instances):
+    for i, (_, pvs_model_instance) in enumerate(pvs_model_instances):
         model_inherited_textures = models_inherited_textures[pvs_model_instance.model_index]
         _, file_index, _ = texture_files[pvs_model_instance.texture]
         if file_index not in model_inherited_textures:
@@ -270,10 +270,11 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
 
     # generate models from pvs
     instances_parent = bpy.data.objects.new("Models Instances", object_data=None)
-    for pvs_model_instance in pvs_model_instances:
+    for instance_index, pvs_model_instance in pvs_model_instances:
         if model_collections[pvs_model_instance.model_index] is None:
             continue
-        collection_instance = bpy.data.objects.new(model_collections[pvs_model_instance.model_index].name, object_data=None)
+        instance_index_str = "-" if instance_index is None else F"{instance_index:05d}"
+        collection_instance = bpy.data.objects.new(F"{instance_index_str} {model_collections[pvs_model_instance.model_index].name}", object_data=None)
         collection_instance.instance_type = "COLLECTION"
         collection_instance.instance_collection = model_collections[pvs_model_instance.model_index]
         collection_instance.show_instancer_for_viewport = False
