@@ -19,11 +19,11 @@ class ForzaVertex:
                     has_position = True
                     name = "position"
                 else:
-                    raise RuntimeError()
+                    raise RuntimeError("Unexpected POSITION semantic number.")
                 if element.type == 2761657: # D3DDECLTYPE_FLOAT3
                     format = ">3f4"
                 else:
-                    raise RuntimeError()
+                    raise RuntimeError("Unexpected POSITION semantic type.")
             elif element.usage == 5:
                 if element.usage_index == 0: # TEXCOORD0
                     has_texcoord[0] = True
@@ -35,21 +35,21 @@ class ForzaVertex:
                     has_texcoord[2] = True
                     name = "texcoord2"
                 else:
-                    raise RuntimeError()
+                    raise RuntimeError("Unexpected TEXCOORD semantic number.")
                 if element.type == 2891865: # D3DDECLTYPE_USHORT2N
                     format = ">2u2"
                 else:
-                    raise RuntimeError()
+                    raise RuntimeError("Unexpected TEXCOORD semantic type.")
             else:
                 if element.type == 1712519 or element.type == 1583238: # D3DDECLTYPE_DEC4N, D3DDECLTYPE_D3DCOLOR
                     dtype_columns.append((F"gap{gap_index}", np.void, 4))
                     gap_index += 1
                 else:
-                    raise RuntimeError()
+                    raise RuntimeError("Unknown semantic type.")
                 continue
             dtype_columns.append((name, format))
         if not has_position:
-            raise RuntimeError()
+            raise RuntimeError("No POSITION0 semantic.")
         vertex = np.frombuffer(buf, np.dtype(dtype_columns))
         texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
         return ForzaVertex(vertex["position"], texcoords)

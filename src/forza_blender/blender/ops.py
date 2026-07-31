@@ -241,7 +241,12 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
         # TODO: check if all textures for a track section are being passed to the track subsection
         path_to_rmbbin = path_bin / F"{pvs.prefix}.{model_filename}.rmb.bin"
         try: model_meshes[model_index] = generate_meshes_from_rmbbin(path_to_rmbbin, context, model_textures, shaders, models_inherited_textures[model_index])
-        except: print("Problem getting mesh from model index", model_index)
+        except FileNotFoundError:
+            print("File not found for model index", model_index)
+        except RuntimeError as e:
+            print(F"Problem getting mesh from model index {model_index}. {e}")
+        except:
+            print("Problem getting mesh from model index", model_index)
         if (i + 1) % 100 == 0:
             msg: str = f"[{i + 1}/{len(models_to_load)}] meshes imported"
             print(msg); bpy.context.workspace.status_text_set(msg)
