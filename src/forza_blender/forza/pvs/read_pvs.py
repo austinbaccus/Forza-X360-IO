@@ -4,6 +4,7 @@ class PVSHeader:
     def __init__(self, version: int):
         self.version = version
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         magic = stream.read_u32()
         if magic != 0x46505653: # 'FPVS'
@@ -22,6 +23,7 @@ class PVSHeader:
 class PVSZone:
     # we need this class, because this file format is sequential and this structure contain variable length fields
     # se we have to read at least the length fields to calculate how much bytes we should skip
+    @staticmethod
     def from_stream(stream: BinaryStream):
         unk1_length = stream.read_u32()
         stream.skip(2 * unk1_length) # skip array of uint16
@@ -40,6 +42,7 @@ class PVSModelInstance:
         self.model_data = model_data
         self.transform = transform
 
+    @staticmethod
     def from_stream(stream: BinaryStream, version):
         model_index = stream.read_u16()
         flags = stream.read_u32()
@@ -73,6 +76,7 @@ class PVSModel:
         self.textures = textures
         self.shaders = shaders
 
+    @staticmethod
     def from_stream(stream: BinaryStream, model_index):
         textures_references_length = stream.read_u32()
         textures = []
@@ -94,7 +98,8 @@ class PVSTexture:
         self.v_scale = v_scale
         self.u_translate = u_translate
         self.v_translate = v_translate
-        
+
+    @staticmethod
     def from_stream(stream: BinaryStream):
         texture_file_name = stream.read_u32()
         index_in_stx_bin = stream.read_u32()
@@ -118,6 +123,7 @@ class PVS:
         self.lone_models_instances = lone_models_instances
         self.prefix = prefix
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         header = PVSHeader.from_stream(stream) # type: ignore
         stream.skip(2 + 2)

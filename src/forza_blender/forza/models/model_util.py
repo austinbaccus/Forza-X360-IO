@@ -25,7 +25,7 @@ def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_file
         print("Problem getting mesh from model index", pvs_model_instance.model_index)
 
 def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
-    pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
 
     pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
@@ -59,7 +59,7 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
     return pvs, pvs_model_instances, models_to_load, model_meshes
 
 def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures: list[tuple[PVSTexture, int, bool]], shaders: dict[str, FXLShader], inherited_textures: list[int]):
-    track_bin: RmbBin = RmbBin.from_path(path_trackbin)
+    track_bin = RmbBin.from_path(path_trackbin)
     rmbbin_meshes: list[ForzaMesh] = []
 
     # assume that all submeshes have the same vertex buffer layout, even if they have different shaders

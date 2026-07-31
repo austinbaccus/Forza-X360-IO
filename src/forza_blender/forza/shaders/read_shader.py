@@ -6,6 +6,7 @@ class VertexElement: # _D3DVERTEXELEMENT9
         self.usage = usage
         self.usage_index = usage_index
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(2 + 2)
         type = stream.read_u32()
@@ -19,6 +20,7 @@ class VertexDeclaration: # D3D::CVertexDeclaration
     def __init__(self, elements: list[VertexElement]):
         self.elements = elements
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(24)
         elements_length = stream.read_u32()
@@ -30,6 +32,7 @@ class FXLShader: # CFXLShader
     def __init__(self, vdecl: VertexDeclaration):
         self.vdecl = vdecl
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         type = stream.read_u32()
         if type != 0x101:

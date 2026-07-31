@@ -8,6 +8,7 @@ class IndexBuffer:
         self.stride = stride
         self.data = data
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         version = stream.read_u32()
         if version >= 4:
@@ -26,6 +27,7 @@ class ForzaTrackSubSection:
         self.index_type = index_type
         self.index_buffer = index_buffer
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         assert(1 == stream.read_u32())
         assert(2 == stream.read_u32())

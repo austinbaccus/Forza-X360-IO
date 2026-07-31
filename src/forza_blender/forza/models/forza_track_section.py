@@ -12,6 +12,7 @@ class VertexBuffer:
         self.stride = stride
         self.data = data
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         version = stream.read_u32()
         length: int = stream.read_u32()
@@ -27,6 +28,7 @@ class ForzaTrackSection:
         self.vertex_buffer = vertex_buffer
         self.subsections = subsections
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         assert(1 == stream.read_u32())
         stream.skip(12)
@@ -52,7 +54,7 @@ class ForzaTrackSection:
         
 
     def generate_vertices(self, elements: list[VertexElement]):
-        vertices: ForzaVertex = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
+        vertices = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
 
         # uv adjustments
         sub = self.subsections[0] # assume that all submeshes have the same UV transform

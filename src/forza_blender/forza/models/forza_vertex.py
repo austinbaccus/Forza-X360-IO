@@ -8,6 +8,7 @@ class ForzaVertex:
         self.texcoords = texcoords
         self.normal = None
 
+    @staticmethod
     def from_buffer(buf: bytes, elements: list[VertexElement]):
         has_position = False
         has_texcoord = [False] * 3
