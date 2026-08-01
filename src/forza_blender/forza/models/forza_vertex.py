@@ -55,6 +55,14 @@ class ForzaVertex:
         texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
         return ForzaVertex(vertex["position"], texcoords)
 
+    # minimal guessing to read meshes without shaders
+    @staticmethod
+    def from_buffer_stride(buf: bytes, stride: int):
+        vertex = np.frombuffer(buf, np.uint8).reshape(-1, stride)
+        position = vertex[:, :12].view(">f4")
+        texcoords = [None] * 3
+        return ForzaVertex(position, texcoords)
+
     def _get_normalized_101010(self, packed_value: int):
         # layout matches R10G10B10: bits [0..9]=X, [10..19]=Y, [20..29]=Z. Top 2 bits ignored.
         MASK10 = 0x3FF   # 10-bit mask (0b11_1111_1111)

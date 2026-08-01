@@ -41,7 +41,7 @@ class ForzaTrackSubSection:
         index_type: IndexType = IndexType(stream.read_u32())
 
         # skip and assert
-        material_index = stream.read_u32()
+        material_index = stream.read_s32()
         assert(1 == stream.read_u32())
         assert(0 == stream.read_u32())
         assert(0 == stream.read_u32())

@@ -10,6 +10,10 @@ light_color = (1.93, 1.93, 1.9)
 
 def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, track_folder_path):
     materials = []
+
+    if forza_mesh.track_section.subsections[0].material_index == -1:
+        return materials
+
     for sub in forza_mesh.track_section.subsections:
         fx_filename_index = forza_mesh.track_bin.material_sets[0].materials[sub.material_index].fx_filename_index
         shader_filename_simple = (forza_mesh.track_bin.shader_filenames[fx_filename_index].split('\\')[-1]).split('.')[0]

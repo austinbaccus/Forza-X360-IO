@@ -53,8 +53,11 @@ class ForzaTrackSection:
         return ForzaTrackSection(name, vertex_buffer, subsections)
         
 
-    def generate_vertices(self, elements: list[VertexElement]):
-        vertices = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
+    def generate_vertices(self, elements: list[VertexElement] | None):
+        if elements is not None:
+            vertices = ForzaVertex.from_buffer(self.vertex_buffer.data, elements)
+        else:
+            vertices = ForzaVertex.from_buffer_stride(self.vertex_buffer.data, self.vertex_buffer.stride)
 
         # uv adjustments
         sub = self.subsections[0] # assume that all submeshes have the same UV transform
