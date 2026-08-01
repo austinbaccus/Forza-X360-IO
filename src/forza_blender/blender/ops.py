@@ -11,7 +11,7 @@ from bpy.props import StringProperty # type: ignore
 from forza_blender.forza.models.model_util import generate_meshes_from_pvs, generate_meshes_from_pvs_model_instance, generate_meshes_from_rmbbin, get_rmbbin_files, get_shaders
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.utils.mesh_util import convert_forzamesh_into_blendermesh
-from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_object
+from forza_blender.forza.uv.uv_util import generate_and_assign_uv_layers_to_mesh
 from forza_blender.forza.textures.read_bix import Bix
 from forza_blender.forza.textures.texture_util import *
 from forza_blender.forza.shaders.shaders import *
@@ -358,6 +358,9 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 
+    # uv
+    generate_and_assign_uv_layers_to_mesh(blender_mesh, forza_mesh)
+
     # material
     if context.scene.generate_mats:
         if context.scene.use_pregenerated_textures:
@@ -366,9 +369,6 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
             raise RuntimeError("Importing materials without pre-generated textures is not implemented yet.")
         for mat in mats:
             obj.data.materials.append(mat)
-
-    # uv
-    generate_and_assign_uv_layers_to_object(obj, forza_mesh)
 
     collection.objects.link(obj)
 
