@@ -59,6 +59,10 @@ class ForzaTrackSection:
         else:
             vertices = ForzaVertex.from_buffer_stride(self.vertex_buffer.data, self.vertex_buffer.stride)
 
+        # normalize normals
+        if vertices.normal is not None:
+            vertices.normal /= np.linalg.norm(vertices.normal)
+
         # uv adjustments
         sub = self.subsections[0] # assume that all submeshes have the same UV transform
         for texcoord in vertices.texcoords:

@@ -358,6 +358,10 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
     blender_mesh = convert_forzamesh_into_blendermesh(forza_mesh)
     obj = bpy.data.objects.new(forza_mesh.name, blender_mesh)
 
+    # normals
+    if forza_mesh.vertices.normal is not None:
+        blender_mesh.normals_split_custom_set_from_vertices(forza_mesh.vertices.normal)
+
     # uv
     generate_and_assign_uv_layers_to_mesh(blender_mesh, forza_mesh)
 
