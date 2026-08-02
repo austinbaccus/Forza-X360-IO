@@ -6,6 +6,8 @@ from forza_blender.forza.pvs.pvs_util import BinaryStream
 from forza_blender.forza.pvs.read_pvs import PVS, PVSTexture
 from forza_blender.forza.shaders.read_shader import FXLShader
 
+allow_no_material = False # guessing vertex layout for meshes that have no material
+
 def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_files, shaders, context):
     try:
         if not context.scene.generate_lods and (pvs_model_instance.flags & (1 << 11)) == 0 and (pvs_model_instance.flags & (6 << 11)) != 0:
@@ -25,7 +27,7 @@ def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_file
         print("Problem getting mesh from model index", pvs_model_instance.model_index)
 
 def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
-    pvs: PVS = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
 
     pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
@@ -59,17 +61,24 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
     return pvs, pvs_model_instances, models_to_load, model_meshes
 
 def generate_meshes_from_rmbbin(path_trackbin: Path, context, textures: list[tuple[PVSTexture, int, bool]], shaders: dict[str, FXLShader], inherited_textures: list[int]):
-    track_bin: RmbBin = RmbBin.from_path(path_trackbin)
+    track_bin = RmbBin.from_path(path_trackbin)
     rmbbin_meshes: list[ForzaMesh] = []
 
     # assume that all submeshes have the same vertex buffer layout, even if they have different shaders
     for track_section in track_bin.track_sections:
         # track_section_num track_section_name track_subsection_name
-        meshName: str = path_trackbin.name.split('.')[1] + " " + track_section.name + " " + track_section.subsections[0].name
-        # TODO: replace with proper shader selection based on .pvs file
-        fx_index = track_bin.material_sets[0].materials[track_section.subsections[0].material_index].fx_filename_index
-        vertices, faces, material_indexes = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
-        forza_mesh = ForzaMesh(meshName, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, textures, track_bin.shader_filenames, inherited_textures)
+        mesh_name = F"{path_trackbin.name.split('.')[1]} {track_section.name} {track_section.subsections[0].name}"
+        material_index = track_section.subsections[0].material_index
+        if material_index != -1:
+            # TODO: replace with proper shader selection based on .pvs file
+            fx_index = track_bin.material_sets[0].materials[material_index].fx_filename_index
+            vertices, faces, material_indexes = track_section.generate_vertices(shaders[track_bin.shader_filenames[fx_index]].vdecl.elements)
+        elif allow_no_material:
+            mesh_name = F"no_material {mesh_name}"
+            vertices, faces, material_indexes = track_section.generate_vertices(None)
+        else:
+            raise RuntimeError("No material, not possible to get the vertex buffer layout.")
+        forza_mesh = ForzaMesh(mesh_name, track_section.subsections[0].name, faces, vertices, material_indexes, track_bin, track_section, textures, track_bin.shader_filenames, inherited_textures)
         rmbbin_meshes.append(forza_mesh)
 
     return rmbbin_meshes

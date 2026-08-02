@@ -7,6 +7,7 @@ class Material:
         self.pixel_shader_constants = pixel_shader_constants
         self.texture_sampler_indices = texture_sampler_indices
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(4) # version
         fx_filename_index = stream.read_u32()
@@ -33,6 +34,7 @@ class MaterialSet:
     def __init__(self, materials: list[Material]):
         self.materials = materials
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(8) # MaterialSet version, Container version
         materials_length: int = stream.read_u32()
@@ -47,6 +49,7 @@ class RmbBin:
         self.material_sets = material_sets
         self.shader_filenames = shader_filenames
 
+    @staticmethod
     def from_path(path_file: str):
         stream = BinaryStream.from_path(path_file, ">")
 

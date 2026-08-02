@@ -13,6 +13,7 @@ class HeaderUnknown1:
         self.b_length = b_length
         self.b_offsets_length = b_offsets_length
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         a_length = stream.read_u32()
         stream.skip(4)
@@ -27,6 +28,7 @@ class AllocationBlockInfo:
         self.name = name
         self.uncompressed_size = uncompressed_size
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         name = stream.read_cstring(11)
         stream.skip(5)
@@ -44,6 +46,7 @@ class Header:
         self.header_size = header_size
         self.allocation_blocks = allocation_blocks
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(24)
         assets_length = stream.read_u32()
@@ -195,10 +198,12 @@ class TextureAsset:
         self.mip_offset = mip_offset
         self.levels = levels
 
+    @staticmethod
     def from_asset(asset: Asset):
         with asset.stream.scoped_seek(asset.data_ptr):
             return TextureAsset.from_stream(asset.stream)
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
         stream.skip(24)
         texture_format = stream.read_u32()
@@ -231,10 +236,11 @@ class CAFF:
     def __init__(self, assets: Asset):
         self.assets = assets
 
+    @staticmethod
     def get_image_from_bin(filepath):
         stream = BinaryStream.from_path(filepath, ">")
-        caff: CAFF = CAFF.from_stream(stream)
-        textures: list[TextureAsset] = [TextureAsset.from_asset(asset) for asset in caff.assets if asset.name.endswith(".bin")]
+        caff = CAFF.from_stream(stream)
+        textures = [TextureAsset.from_asset(asset) for asset in caff.assets if asset.name.endswith(".bin")]
 
         # convert texture.pixel_data into dds
         dds_list = [None] * len(textures)
@@ -276,8 +282,9 @@ class CAFF:
 
         return dds_list
 
+    @staticmethod
     def from_stream(stream: BinaryStream):
-        header: Header = Header.from_stream(stream)
+        header = Header.from_stream(stream)
         
         address = header.header_size
         for i, allocation_block in enumerate(header.allocation_blocks):
