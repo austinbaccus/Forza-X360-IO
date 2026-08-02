@@ -21,23 +21,13 @@ A Blender addon for porting racetracks, 3D models, and materials out of Forza an
 * Blender Material generation
 
 ### Which Forza games are supported?
-| Game | Supported | Notes |
-|-|-|-|
-| `Forza Motorsport 1`         | ⚠️ | Future support is possible, but not currently planned. Mostly because nobody knows know how to extract FM1 tracks. |
-| `Forza Motorsport 2`         | ❌ | Will not be supported. No unique tracks for exporting. |
-| `Forza Motorsport 3`         | ✅ | Supported. |
-| `Forza Motorsport 4`         | ✅ | Supported. |
-| `Forza Motorsport 5`         | ❌ | Will not be supported. No unique tracks for exporting. |
-| `Forza Motorsport 6`         | ❌ | Will not be supported. No unique tracks for exporting. |
-| `Forza Motorsport 7`         | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Motorsport (2023)`    | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Horizon 1`            | ⏳ | Support is in-progress. |
-| `Forza Horizon 2 (Xbox 360)` | ❌ | Will not be supported. |
-| `Forza Horizon 2 (Xbox One)` | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Horizon 3`            | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Horizon 4`            | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Horizon 5`            | ⚠️ | Future support is possible, but not currently planned. |
-| `Forza Horizon 6`            | ⚠️ | Future support is possible, but not currently planned. |
+All Xbox 360 generation Forza games, but FM2. Feature score ? of 5.
+|Game|Geometry|Textures|Shaders|
+|-|-|-|-|
+|Forza Motorsport 3|5|5|3|
+|Forza Motorsport 4|5|5|2|
+|Forza Horizon 1|2|1|1|
+|Forza Horizon 2|2|1|1|
 
 ### Credits
 Developers
@@ -49,6 +39,6 @@ Special thanks
 * [@Ernegien (Mike Davis)](https://github.com/Ernegien) - For the original Forza Studio.
 
 Advisors
-* Warshack4874
-* Carver
-* RichieMR2
+* [Warshack4874](https://github.com/warshack4874)
+* [Carver](https://github.com/Carver6k)
+* [RichieMR2](https://github.com/Richiem32)

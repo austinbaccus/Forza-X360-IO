@@ -84,7 +84,7 @@ class FORZA_OT_track_import_modal(Operator):
 
         # prepare workload
         self.rmbbin_files = get_rmbbin_files(self.path_bin)
-        self.pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+        self.pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"), self.path_bin)
         self.shaders: dict[str, FXLShader] = get_shaders(self.path_bin, self.pvs)
         self.idx = 0
 
@@ -195,7 +195,7 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     path_ribbon_pvs: Path = list(Path(path_ribbon).glob("*.pvs"))[0]
 
     # get pvs & shaders instances
-    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"), path_bin)
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
 
     # scan texture files
@@ -322,9 +322,10 @@ def _populate_indexed_textures_from_track(path_textures, save_files: bool = Fals
             bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
 def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, path_ribbon: str):
-    path_bin: Path = Path(track_path) / "bin" / "textures"
+    bin_path: Path = Path(track_path) / "bin"
+    textures_path: Path = bin_path / "textures"
     path_ribbon_pvs: Path = next(Path(path_ribbon).glob("*.pvs"))
-    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
+    pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"), bin_path)
 
     known_stx_indexes = set()
     dds_stx = CAFF.get_image_from_bin(next(p for p in path_bin_textures if p.name.endswith(".stx.bin")).resolve())
@@ -344,7 +345,7 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, pat
         # save dds as .dds file
         if dds is not None:
             image_filename = F"{file_name}.dds"
-            image_filepath = path_bin / image_filename
+            image_filepath = textures_path / image_filename
             with open(image_filepath.resolve(), 'wb') as f: 
                 f.write(dds)
         else:
