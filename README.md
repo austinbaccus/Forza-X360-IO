@@ -1,4 +1,5 @@
 # Blender Forza Xbox 360 Era Importer
+<img width="2560" height="1392" alt="blender_modes" src="https://github.com/user-attachments/assets/735fd72c-9386-40d4-899c-348512ad07e8" />
 A Blender addon for porting racetracks, 3D models, and materials out of Forza and into Blender.
 
 ### Supported resources
