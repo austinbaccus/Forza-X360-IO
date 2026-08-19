@@ -189,7 +189,7 @@ def register():
 def unregister():
     for c in reversed(classes): bpy.utils.unregister_class(c)
 
-def _import_fm3(context, track_path: Path, path_ribbon: Path):
+def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path):
     path_bin: Path = Path(track_path) / "bin"
     path_textures: Path = path_bin / "textures"
     path_ribbon_pvs: Path = list(Path(path_ribbon).glob("*.pvs"))[0]
@@ -309,6 +309,9 @@ def _import_fm3(context, track_path: Path, path_ribbon: Path):
     track_layer_collection.collection.children.link(master_collection)
     master_layer_collection = next(layer_collection for layer_collection in track_layer_collection.children if layer_collection.collection == master_collection)
     master_layer_collection.exclude = True
+
+    # compositing
+    generate_blender_compositing(context.scene)
 
 def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
     for i, path_texture in enumerate(path_textures):
