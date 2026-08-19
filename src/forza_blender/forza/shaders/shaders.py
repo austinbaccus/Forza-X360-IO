@@ -7,6 +7,7 @@ from forza_blender.forza.shaders.shaders_util import *
 # TrackSettings.xml
 dark_color = (0, 0, 0)
 light_color = (1.93, 1.93, 1.9)
+light_curve_white_point = 300.000061
 
 def generate_blender_compositing(scene: bpy.types.Scene):
     node_tree: bpy.types.CompositorNodeTree = bpy.data.node_groups.new("Compositor Nodes", type="CompositorNodeTree")
@@ -16,10 +17,64 @@ def generate_blender_compositing(scene: bpy.types.Scene):
 
     render_layers_node: bpy.types.CompositorNodeRLayers = nodes.new("CompositorNodeRLayers")
 
+    # postprocess.fxo, technique FinalCombineBloomTonemap
+    tonemap_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    tonemap_node.operation = "DIVIDE"
+    tonemap_node.inputs["Vector_001"].default_value = (light_curve_white_point / 255, light_curve_white_point / 255, light_curve_white_point / 255)
+    links.new(render_layers_node.outputs["Image"], tonemap_node.inputs["Vector"])
+
+    # apply_gamma_table.cs.xesl, sRGB to Rec.709 (D3D::GetCurrentGammaTable())
+    # sRGB to linear
+    to_linear_node: bpy.types.CompositorNodeConvertColorSpace = nodes.new("CompositorNodeConvertColorSpace")
+    to_linear_node.from_color_space = "sRGB"
+    to_linear_node.to_color_space = "Linear Rec.709"
+    links.new(tonemap_node.outputs["Vector"], to_linear_node.inputs["Image"])
+
+    # color < 0.018
+    cmp_sub_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    cmp_sub_node.operation = "SUBTRACT"
+    cmp_sub_node.inputs["Vector"].default_value = (0.018, 0.018, 0.018)
+    links.new(to_linear_node.outputs["Image"], cmp_sub_node.inputs["Vector_001"])
+
+    cmp_mul_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    cmp_mul_node.operation = "MULTIPLY"
+    cmp_mul_node.inputs["Vector_001"].default_value = (math.inf, math.inf, math.inf)
+    links.new(cmp_sub_node.outputs["Vector"], cmp_mul_node.inputs["Vector"])
+
+    # power
+    power_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    power_node.operation = "POWER"
+    power_node.inputs["Vector_001"].default_value = (0.45, 0.45, 0.45)
+    links.new(to_linear_node.outputs["Image"], power_node.inputs["Vector"])
+
+    power_mul_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    power_mul_node.operation = "MULTIPLY"
+    power_mul_node.inputs["Vector_001"].default_value = (1.099, 1.099, 1.099)
+    links.new(power_node.outputs["Vector"], power_mul_node.inputs["Vector"])
+
+    power_sub_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    power_sub_node.operation = "SUBTRACT"
+    power_sub_node.inputs["Vector_001"].default_value = (0.099, 0.099, 0.099)
+    links.new(power_mul_node.outputs["Vector"], power_sub_node.inputs["Vector"])
+
+    # linear
+    linear_node: bpy.types.ShaderNodeVectorMath = nodes.new("ShaderNodeVectorMath")
+    linear_node.operation = "MULTIPLY"
+    linear_node.inputs["Vector_001"].default_value = (4.5, 4.5, 4.5)
+    links.new(to_linear_node.outputs["Image"], linear_node.inputs["Vector"])
+
+    # linear to Rec.709
+    mix_node: bpy.types.ShaderNodeMix = nodes.new("ShaderNodeMix")
+    mix_node.data_type = "VECTOR"
+    mix_node.factor_mode = "NON_UNIFORM"
+    links.new(cmp_mul_node.outputs["Vector"], mix_node.inputs["Factor"])
+    links.new(power_sub_node.outputs["Vector"], mix_node.inputs["A"])
+    links.new(linear_node.outputs["Vector"], mix_node.inputs["B"])
+
     # sRGB to Working Space, undo Blender post-processing
     to_scene_node: bpy.types.CompositorNodeConvertColorSpace = nodes.new("CompositorNodeConvertColorSpace")
     to_scene_node.from_color_space = "sRGB"
-    links.new(render_layers_node.outputs["Image"], to_scene_node.inputs["Image"])
+    links.new(mix_node.outputs["Result"], to_scene_node.inputs["Image"])
 
     # output
     group_output_node: bpy.types.NodeGroupOutput = nodes.new("NodeGroupOutput")
