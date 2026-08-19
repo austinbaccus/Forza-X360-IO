@@ -8,6 +8,28 @@ from forza_blender.forza.shaders.shaders_util import *
 dark_color = (0, 0, 0)
 light_color = (1.93, 1.93, 1.9)
 
+def generate_blender_compositing(scene: bpy.types.Scene):
+    node_tree: bpy.types.CompositorNodeTree = bpy.data.node_groups.new("Compositor Nodes", type="CompositorNodeTree")
+    node_tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    nodes = node_tree.nodes
+    links = node_tree.links
+
+    render_layers_node: bpy.types.CompositorNodeRLayers = nodes.new("CompositorNodeRLayers")
+
+    # sRGB to Working Space, undo Blender post-processing
+    to_scene_node: bpy.types.CompositorNodeConvertColorSpace = nodes.new("CompositorNodeConvertColorSpace")
+    to_scene_node.from_color_space = "sRGB"
+    links.new(render_layers_node.outputs["Image"], to_scene_node.inputs["Image"])
+
+    # output
+    group_output_node: bpy.types.NodeGroupOutput = nodes.new("NodeGroupOutput")
+    links.new(to_scene_node.outputs["Image"], group_output_node.inputs["Socket_0"])
+
+    viewer_node: bpy.types.CompositorNodeViewer = nodes.new("CompositorNodeViewer")
+    links.new(to_scene_node.outputs["Image"], viewer_node.inputs["Image"])
+
+    scene.compositing_node_group = node_tree
+
 def generate_blender_materials_for_mesh(forza_mesh: ForzaMesh, track_folder_path):
     materials = []
 
@@ -48,55 +70,12 @@ class Shaders:
         nodes.clear()
         textures = generate_image_texture_nodes_for_material(forza_mesh, track_folder_path, nodes, links, material_index)
 
-        color_node = nodes.new("NodeReroute")
-
-        # color < 0.04045
-        cmp_sub_node = nodes.new("ShaderNodeVectorMath")
-        cmp_sub_node.operation = "SUBTRACT"
-        cmp_sub_node.inputs["Vector"].default_value = (0.04045, 0.04045, 0.04045)
-        links.new(color_node.outputs["Output"], cmp_sub_node.inputs["Vector_001"])
-
-        cmp_mul_node = nodes.new("ShaderNodeVectorMath")
-        cmp_mul_node.operation = "MULTIPLY"
-        cmp_mul_node.inputs["Vector_001"].default_value = (math.inf, math.inf, math.inf)
-        links.new(cmp_sub_node.outputs["Vector"], cmp_mul_node.inputs["Vector"])
-
-        # power
-        power_add_node = nodes.new("ShaderNodeVectorMath")
-        power_add_node.inputs["Vector_001"].default_value = (0.055, 0.055, 0.055)
-        links.new(color_node.outputs["Output"], power_add_node.inputs["Vector"])
-
-        power_div_node = nodes.new("ShaderNodeVectorMath")
-        power_div_node.operation = "DIVIDE"
-        power_div_node.inputs["Vector_001"].default_value = (1.055, 1.055, 1.055)
-        links.new(power_add_node.outputs["Vector"], power_div_node.inputs["Vector"])
-
-        power_node = nodes.new("ShaderNodeVectorMath")
-        power_node.operation = "POWER"
-        power_node.inputs["Vector_001"].default_value = (2.4, 2.4, 2.4)
-        links.new(power_div_node.outputs["Vector"], power_node.inputs["Vector"])
-
-        # linear
-        linear_node = nodes.new("ShaderNodeVectorMath")
-        linear_node.operation = "DIVIDE"
-        linear_node.inputs["Vector_001"].default_value = (12.92, 12.92, 12.92)
-        links.new(color_node.outputs["Output"], linear_node.inputs["Vector"])
-
-        # sRGB to linear
-        mix_node = nodes.new("ShaderNodeMix")
-        mix_node.data_type = "VECTOR"
-        mix_node.factor_mode = "NON_UNIFORM"
-        links.new(cmp_mul_node.outputs["Vector"], mix_node.inputs["Factor"])
-        links.new(power_node.outputs["Vector"], mix_node.inputs["A"])
-        links.new(linear_node.outputs["Vector"], mix_node.inputs["B"])
-
         bsdf = nodes.new("ShaderNodeEmission")
-        links.new(mix_node.outputs["Result"], bsdf.inputs["Color"])
 
         out = nodes.new("ShaderNodeOutputMaterial")
         links.new(bsdf.outputs["Emission"], out.inputs["Surface"])
 
-        bsdf_wrapper = NodeWrapperShader(bsdf, color_node.inputs["Input"], bsdf.outputs["Emission"])
+        bsdf_wrapper = NodeWrapperShader(bsdf, bsdf.inputs["Color"], bsdf.outputs["Emission"])
 
         return mat, out, bsdf_wrapper, textures
     
