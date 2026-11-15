@@ -7,7 +7,7 @@ import numpy as np
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
-    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, levels: int, mip_0_size: int) -> bytes:
+    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, levels: int, mip_0_size: int, is_cube: bool) -> bytes:
         # Blender supports only DXT1, DXT3 and DXT5
         d3d_to_fourcc = {
             438305106: b"DXT1", # D3DFMT_DXT1
@@ -62,7 +62,13 @@ class Bix():
         caps = DDSCAPS_TEXTURE
         if levels > 1:
             caps |= DDSCAPS_COMPLEX | DDSCAPS_MIPMAP
-        header2 = struct.pack("<I I I I 4x", caps, 0, 0, 0)
+        elif is_cube:
+            caps |= DDSCAPS_COMPLEX
+        DDSCAPS2_CUBEMAP, DDSCAPS2_CUBEMAP_POSITIVEX, DDSCAPS2_CUBEMAP_NEGATIVEX, DDSCAPS2_CUBEMAP_POSITIVEY, DDSCAPS2_CUBEMAP_NEGATIVEY, DDSCAPS2_CUBEMAP_POSITIVEZ, DDSCAPS2_CUBEMAP_NEGATIVEZ = 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000
+        caps2 = 0
+        if is_cube:
+            caps2 |= DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEX | DDSCAPS2_CUBEMAP_NEGATIVEX | DDSCAPS2_CUBEMAP_POSITIVEY | DDSCAPS2_CUBEMAP_NEGATIVEY | DDSCAPS2_CUBEMAP_POSITIVEZ | DDSCAPS2_CUBEMAP_NEGATIVEZ
+        header2 = struct.pack("<I I I I 4x", caps, caps2, 0, 0)
 
         result = DDS_MAGIC + header + pixelfmt + header2
         if is_dxt10:
@@ -73,7 +79,7 @@ class Bix():
             result += dxt10
         return result + data
 
-    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int, tiles: list):
+    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int, is_cube: bool, tiles: list):
         endian = (d3d_format & 0xC0) >> 6
         if endian == 1: # GPUENDIAN_8IN16
             data = Bix.flip_byte_order_16bit(data)
@@ -82,10 +88,11 @@ class Bix():
         elif endian != 0: # GPUENDIAN_NONE
             raise RuntimeError("Unknown texture format endian")
 
-        linear_mips = Deswizzler.get_linear_mips(data, d3d_format, width, height, levels, tiles)
+        faces = 6 if is_cube else 1
+        linear_mips = Deswizzler.get_linear_mips(data, d3d_format, width, height, faces, levels, tiles)
         mip_0_size = len(linear_mips[0])
         linear_data = np.concatenate(linear_mips).tobytes()
-        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, levels, mip_0_size)
+        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, levels, mip_0_size, is_cube)
 
     def get_image_from_bix(path: Path, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
@@ -120,8 +127,8 @@ class Bix():
             base_size = struct.unpack_from(">I", buf, 24)[0]
 
             tiles = Deswizzler.get_tiles(d3d_format, width, height, levels)
-            tiles_base_size = Deswizzler.get_tiles_base_size(tiles)
-            tiles_total_size = Deswizzler.get_tiles_total_size(tiles)
+            tiles_base_size = Deswizzler.get_tiles_base_size(tiles, False)
+            tiles_total_size = Deswizzler.get_tiles_total_size(tiles, False)
 
             if num == 1112102960: # BIX0
                 if tiles_base_size != base_size:
@@ -141,7 +148,7 @@ class Bix():
         with open(file_base_path, "rb") as f:
             f.readinto(texture_data[:base_size])
 
-        dds = Bix.texture_to_dds(texture_data, d3d_format, width, height, levels, tiles)
+        dds = Bix.texture_to_dds(texture_data, d3d_format, width, height, levels, False, tiles)
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"

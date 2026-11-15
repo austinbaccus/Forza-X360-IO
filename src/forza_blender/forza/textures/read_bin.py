@@ -248,10 +248,14 @@ class CAFF:
             # if texture.mip_offset != 0xFFFFFFFF:
             #     print("Unexpected .bin texture mip_offset")
             #     continue
+            if texture.texture_type != 0 and texture.texture_type != 2: # TEX_DIRECT, TEX_CUBE
+                print("Unexpected .bin texture type")
+                continue
+            is_cube = texture.texture_type == 2
             tiles = Deswizzler.get_tiles(texture.texture_format, texture.width, texture.height, texture.levels)
-            pixel_data_size = Deswizzler.get_tiles_total_size(tiles)
+            pixel_data_size = Deswizzler.get_tiles_total_size(tiles, is_cube)
             texture_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
-            dds_list[i] = Bix.texture_to_dds(texture_data, texture.texture_format, texture.width, texture.height, texture.levels, tiles)
+            dds_list[i] = Bix.texture_to_dds(texture_data, texture.texture_format, texture.width, texture.height, texture.levels, is_cube, tiles)
 
         return dds_list
 

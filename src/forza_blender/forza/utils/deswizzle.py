@@ -60,12 +60,16 @@ class Deswizzler:
             height_pow2 >>= 1
         return tiles
 
-    def get_tiles_base_size(tiles: list):
+    def get_tiles_base_size(tiles: list, is_cube: bool):
         size = tiles[0][4]
+        if is_cube:
+            size *= 6
         return size
 
-    def get_tiles_total_size(tiles: list):
+    def get_tiles_total_size(tiles: list, is_cube: bool):
         size = sum(tile_info[4] for tile_info in tiles)
+        if is_cube:
+            size *= 6
         return size
 
     # XGRAPHICS::GetMipTailLevelOffsetCoords()
@@ -132,8 +136,8 @@ class Deswizzler:
 
         return (((Offset & ~511) << 3) + ((Offset & 448) << 2) + (Offset & 63) + ((y & 16) << 7) + (((((y & 8) >> 2) + (x >> 3)) & 3) << 6)) >> LogBpp
 
-    def get_linear_mips(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int, tiles: list):
-        mips = []
+    def get_linear_mips(data: np.ndarray, d3d_format: int, width: int, height: int, faces_length: int, levels: int, tiles: list):
+        faces = [[] for _ in range(faces_length)]
         address = 0
 
         tail_level = Deswizzler.get_tail_level(width, height)
@@ -142,21 +146,24 @@ class Deswizzler:
         head_tiles = tiles[:tail_level] if has_tail else tiles
         for tile_info in head_tiles:
             w, h, cw, ch, size = tile_info
-            mip_data = data[address:address + size]
-            address += size
-            mips.append((mip_data, w, h, 0, 0, cw, ch))
+            for mips in faces:
+                mip_data = data[address:address + size]
+                address += size
+                mips.append((mip_data, w, h, 0, 0, cw, ch))
 
         if has_tail:
             w, h, cw, ch, size = tiles[tail_level]
             tail_mips = Deswizzler.get_tail_mips(d3d_format, w, h, cw, ch, tail_levels)
-            mip_data = data[address:address + size]
-            address += size
-            for tail_mip_info in tail_mips:
-                mips.append((mip_data, *tail_mip_info))
+            for mips in faces:
+                mip_data = data[address:address + size]
+                address += size
+                for tail_mip_info in tail_mips:
+                    mips.append((mip_data, *tail_mip_info))
 
         linear_mips = []
-        for mip_info in mips:
-            d, w, h, x, y, cw, _ = mip_info
-            linear_data = Deswizzler.get_linear_data(d, d3d_format, w, h, x, y, cw)
-            linear_mips.append(linear_data)
+        for mips in faces:
+            for mip_info in mips:
+                d, w, h, x, y, cw, _ = mip_info
+                linear_data = Deswizzler.get_linear_data(d, d3d_format, w, h, x, y, cw)
+                linear_mips.append(linear_data)
         return linear_mips
