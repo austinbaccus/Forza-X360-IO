@@ -85,46 +85,40 @@ class Bix():
 
     def get_image_from_bix(path: Path, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
-        # the second file ends with "_B". this file contains the actual pixels I think.
+        # The file with the "_B" suffix stores the mip 0. The header and the remaining mips are stored in a separate file.
         directory = path.parent
         filename = path.stem
         filetype = path.suffix 
 
         if filename.endswith("_B"):
-            raise ValueError("Don't load the `_B` version fo a texture file.")
+            raise ValueError("Don't load the `_B` version of a texture file.")
 
-        # get image a and b names
-        file_a_name: str = filename + filetype
-        file_b_name: str = filename + "_B" + filetype
+        # get file names
+        file_chain_name = f"{filename}{filetype}"
+        file_base_name = f"{filename}_B{filetype}"
 
-        # image a and b paths
-        file_a_path: str = directory / file_a_name
-        file_b_path: str = directory / file_b_name
+        # file paths
+        file_chain_path = directory / file_chain_name
+        file_base_path = directory / file_base_name
 
-        width: int = None
-        height: int = None
-        levels: int = None
-        format: int = None
-        total_size: int = None
-        main_size: int = None
-
-        # read file `a` (Big Endian format)
-        with open(file_a_path, "rb") as f:
-            num = int.from_bytes(f.read(4), byteorder="big", signed=False)
+        # read chain file (Big Endian format)
+        with open(file_chain_path, "rb") as f:
+            buf = f.read(28)
+            num = struct.unpack_from(">I", buf)[0]
             if num != 1112102960 and num != 1112102961:
                 raise TypeError("Unrecognized bix file format. " + str(num))
 
-            width = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            height = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            levels = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            format = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            total_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            main_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            width = struct.unpack_from(">I", buf, 4)[0]
+            height = struct.unpack_from(">I", buf, 8)[0]
+            levels = struct.unpack_from(">I", buf, 12)[0]
+            d3d_format = struct.unpack_from(">I", buf, 16)[0]
+            total_size = struct.unpack_from(">I", buf, 20)[0]
+            base_size = struct.unpack_from(">I", buf, 24)[0]
 
-        # read file `b`
-        dumped_image_data = np.fromfile(file_b_path, np.uint8)
+        # read base file
+        dumped_image_data = np.fromfile(file_base_path, np.uint8)
 
-        dds = Bix.texture_to_dds(dumped_image_data, format, width, height, levels)
+        dds = Bix.texture_to_dds(dumped_image_data, d3d_format, width, height, levels)
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"
