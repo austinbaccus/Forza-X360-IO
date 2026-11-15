@@ -245,9 +245,13 @@ class CAFF:
         # convert texture.pixel_data into dds
         dds_list = [None] * len(textures)
         for i, texture in enumerate(textures):
-            pixel_data_size = Deswizzler.calc_texture_size(texture.texture_format, texture.width, texture.height)
-            dumped_image_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
-            dds_list[i] = Bix.texture_to_dds(dumped_image_data, texture.texture_format, texture.width, texture.height, texture.levels)
+            # if texture.mip_offset != 0xFFFFFFFF:
+            #     print("Unexpected .bin texture mip_offset")
+            #     continue
+            tiles = Deswizzler.get_tiles(texture.texture_format, texture.width, texture.height, texture.levels)
+            pixel_data_size = Deswizzler.get_tiles_total_size(tiles)
+            texture_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
+            dds_list[i] = Bix.texture_to_dds(texture_data, texture.texture_format, texture.width, texture.height, texture.levels, tiles)
 
         return dds_list
 

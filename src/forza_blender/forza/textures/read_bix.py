@@ -7,7 +7,7 @@ import numpy as np
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
-    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, mip_0_size: int) -> bytes:
+    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, levels: int, mip_0_size: int) -> bytes:
         # Blender supports only DXT1, DXT3 and DXT5
         d3d_to_fourcc = {
             438305106: b"DXT1", # D3DFMT_DXT1
@@ -46,18 +46,22 @@ class Bix():
             return None
 
         DDS_MAGIC = b"DDS "
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
+        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_MIPMAPCOUNT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x20000, 0x80000
         flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
+        if levels > 1:
+            flags |= DDSD_MIPMAPCOUNT
         header = struct.pack("<I I I I I I I 44x",
-            124, flags, height, width, mip_0_size, 1, 1
+            124, flags, height, width, mip_0_size, 1, levels
         )
 
         DDPF_FOURCC = 0x4
         fourcc = b"DX10" if is_dxt10 else d3d_to_fourcc[d3d_format]
         pixelfmt = struct.pack("<I I 4s I I I I I", 32, DDPF_FOURCC, fourcc, 0, 0, 0, 0, 0)
 
-        DDSCAPS_TEXTURE = 0x1000
+        DDSCAPS_COMPLEX, DDSCAPS_TEXTURE, DDSCAPS_MIPMAP = 0x8, 0x1000, 0x400000
         caps = DDSCAPS_TEXTURE
+        if levels > 1:
+            caps |= DDSCAPS_COMPLEX | DDSCAPS_MIPMAP
         header2 = struct.pack("<I I I I 4x", caps, 0, 0, 0)
 
         result = DDS_MAGIC + header + pixelfmt + header2
@@ -69,7 +73,7 @@ class Bix():
             result += dxt10
         return result + data
 
-    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int):
+    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int, tiles: list):
         endian = (d3d_format & 0xC0) >> 6
         if endian == 1: # GPUENDIAN_8IN16
             data = Bix.flip_byte_order_16bit(data)
@@ -78,10 +82,10 @@ class Bix():
         elif endian != 0: # GPUENDIAN_NONE
             raise RuntimeError("Unknown texture format endian")
 
-        blocks = Deswizzler.XGUntileSurfaceToLinearTexture(data, width, height, d3d_format, levels)
-        mip_0_size = len(blocks)
-        linear_data = blocks.tobytes()
-        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, mip_0_size)
+        linear_mips = Deswizzler.get_linear_mips(data, d3d_format, width, height, levels, tiles)
+        mip_0_size = len(linear_mips[0])
+        linear_data = np.concatenate(linear_mips).tobytes()
+        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, levels, mip_0_size)
 
     def get_image_from_bix(path: Path, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
@@ -105,7 +109,7 @@ class Bix():
         with open(file_chain_path, "rb") as f:
             buf = f.read(28)
             num = struct.unpack_from(">I", buf)[0]
-            if num != 1112102960 and num != 1112102961:
+            if num != 1112102960 and num != 1112102961: # BIX0, BIX1
                 raise TypeError("Unrecognized bix file format. " + str(num))
 
             width = struct.unpack_from(">I", buf, 4)[0]
@@ -115,10 +119,29 @@ class Bix():
             total_size = struct.unpack_from(">I", buf, 20)[0]
             base_size = struct.unpack_from(">I", buf, 24)[0]
 
-        # read base file
-        dumped_image_data = np.fromfile(file_base_path, np.uint8)
+            tiles = Deswizzler.get_tiles(d3d_format, width, height, levels)
+            tiles_base_size = Deswizzler.get_tiles_base_size(tiles)
+            tiles_total_size = Deswizzler.get_tiles_total_size(tiles)
 
-        dds = Bix.texture_to_dds(dumped_image_data, d3d_format, width, height, levels)
+            if num == 1112102960: # BIX0
+                if tiles_base_size != base_size:
+                    raise RuntimeError("tiles_base_size != base_size")
+                if tiles_total_size != total_size:
+                    raise RuntimeError("tiles_total_size != total_size")
+            else:
+                if tiles_base_size < base_size:
+                    raise RuntimeError("tiles_base_size < base_size")
+                if tiles_total_size < total_size:
+                    raise RuntimeError("tiles_total_size < total_size")
+
+            texture_data = np.empty(tiles_total_size, np.uint8)
+            f.readinto(texture_data[tiles_base_size:tiles_base_size + (total_size - base_size)])
+
+        # read base file
+        with open(file_base_path, "rb") as f:
+            f.readinto(texture_data[:base_size])
+
+        dds = Bix.texture_to_dds(texture_data, d3d_format, width, height, levels, tiles)
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"
