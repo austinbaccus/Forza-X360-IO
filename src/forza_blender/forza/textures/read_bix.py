@@ -7,10 +7,85 @@ import numpy as np
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
-    def get_image_from_bix(filepath, save_image: bool = False):
+    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, mip_0_size: int) -> bytes:
+        # Blender supports only DXT1, DXT3 and DXT5
+        d3d_to_fourcc = {
+            438305106: b"DXT1", # D3DFMT_DXT1
+            438337362: b"DXT1", # MAKESRGBFMT(D3DFMT_DXT1)
+            438337363: b"DXT3", # MAKESRGBFMT(D3DFMT_DXT3)
+            438305108: b"DXT5", # D3DFMT_DXT5
+            438337364: b"DXT5", # MAKESRGBFMT(D3DFMT_DXT5)
+        }
+        d3d_to_dxgi = {
+            # # DXGI_FORMAT_BC1_UNORM
+            # 438305106: 71, # D3DFMT_DXT1
+            # 438337362: 71, # MAKESRGBFMT(D3DFMT_DXT1)
+            # # DXGI_FORMAT_BC2_UNORM
+            # 438337363: 74, # MAKESRGBFMT(D3DFMT_DXT3)
+            # # DXGI_FORMAT_BC3_UNORM
+            # 438305108: 77, # D3DFMT_DXT5
+            # 438337364: 77, # MAKESRGBFMT(D3DFMT_DXT5)
+            # DXGI_FORMAT_BC4_UNORM
+            438305147: 80, # D3DFMT_DXT5A
+            438337403: 80, # MAKESRGBFMT(D3DFMT_DXT5A)
+            # DXGI_FORMAT_BC5_UNORM
+            438305137: 83, # D3DFMT_DXN
+            438337393: 83, # MAKESRGBFMT(D3DFMT_DXN)
+            # DXGI_FORMAT_B8G8R8A8_UNORM
+            405275014: 87, # D3DFMT_A8R8G8B8
+            # DXGI_FORMAT_B8G8R8X8_UNORM
+            673710470: 88, # D3DFMT_X8R8G8B8
+            673742726: 88, # MAKESRGBFMT(D3DFMT_X8R8G8B8)
+            673742470: 88, # D3DFMT_LIN_X8R8G8B8
+            # DXGI_FORMAT_R8_UNORM
+            671088898: 61, # D3DFMT_L8
+        }
+        is_dxt10 = d3d_format not in d3d_to_fourcc
+        if is_dxt10 and d3d_format not in d3d_to_dxgi:
+            print("Unsupported D3D format:", d3d_format)
+            return None
+
+        DDS_MAGIC = b"DDS "
+        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
+        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
+        header = struct.pack("<I I I I I I I 44x",
+            124, flags, height, width, mip_0_size, 1, 1
+        )
+
+        DDPF_FOURCC = 0x4
+        fourcc = b"DX10" if is_dxt10 else d3d_to_fourcc[d3d_format]
+        pixelfmt = struct.pack("<I I 4s I I I I I", 32, DDPF_FOURCC, fourcc, 0, 0, 0, 0, 0)
+
+        DDSCAPS_TEXTURE = 0x1000
+        caps = DDSCAPS_TEXTURE
+        header2 = struct.pack("<I I I I 4x", caps, 0, 0, 0)
+
+        result = DDS_MAGIC + header + pixelfmt + header2
+        if is_dxt10:
+            # DDS_HEADER_DXT10
+            # resourceDimension=3 (TEXTURE2D), arraySize=1
+            dxgi_format = d3d_to_dxgi[d3d_format]
+            dxt10 = struct.pack("<I I I I I", dxgi_format, 3, 0, 1, 0)
+            result += dxt10
+        return result + data
+
+    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int):
+        endian = (d3d_format & 0xC0) >> 6
+        if endian == 1: # GPUENDIAN_8IN16
+            data = Bix.flip_byte_order_16bit(data)
+        elif endian == 2: # GPUENDIAN_8IN32
+            data = Bix.flip_byte_order_32bit(data)
+        elif endian != 0: # GPUENDIAN_NONE
+            raise RuntimeError("Unknown texture format endian")
+
+        blocks = Deswizzler.XGUntileSurfaceToLinearTexture(data, width, height, d3d_format, levels)
+        mip_0_size = len(blocks)
+        linear_data = blocks.tobytes()
+        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, mip_0_size)
+
+    def get_image_from_bix(path: Path, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
         # the second file ends with "_B". this file contains the actual pixels I think.
-        path = Path(filepath)
         directory = path.parent
         filename = path.stem
         filetype = path.suffix 
@@ -49,35 +124,7 @@ class Bix():
         # read file `b`
         dumped_image_data = np.fromfile(file_b_path, np.uint8)
 
-        endian = (format & 0xC0) >> 6
-        if endian == 1: # GPUENDIAN_8IN16
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-        elif endian == 2: # GPUENDIAN_8IN32
-            dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-        elif endian != 0: # GPUENDIAN_NONE
-            raise RuntimeError("Unknown texture format endian")
-
-        blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, format, levels)
-        blocks = blocks.tobytes()
-        match format:
-            case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
-                dds = Bix.wrap_as_dds_dx10_bc(71, blocks, width, height) # DXGI_FORMAT_BC1_UNORM
-            case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
-                dds = Bix.wrap_as_dds_dx10_bc(74, blocks, width, height) # DXGI_FORMAT_BC2_UNORM
-            case 438305108 | 438337364: # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
-                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
-            case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
-                dds = Bix.wrap_as_dds_dx10_bc(80, blocks, width, height) # DXGI_FORMAT_BC4_UNORM
-            case 438305137: # D3DFMT_DXN
-                dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
-            case 673710470: # D3DFMT_X8R8G8B8
-                dds = Bix.wrap_as_dds_dx10_bc(88, blocks, width, height) # DXGI_FORMAT_B8G8R8X8_UNORM
-            case 671088898: # D3DFMT_L8
-                dds = Bix.wrap_as_dds_dx10_bc(61, blocks, width, height) # DXGI_FORMAT_R8_UNORM
-            case _:
-                print("Unsupported D3D format:", format)
-                return None
-                #raise ValueError("Unsupported deswizzling format!")
+        dds = Bix.texture_to_dds(dumped_image_data, format, width, height, levels)
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"
@@ -110,59 +157,6 @@ class Bix():
                 except Exception:
                     pass
             return img
-
-    def wrap_as_dds_dx10_bc(fmt_dxgi: int, blocks_linear: bytes, width: int, height: int) -> bytes:
-        # DXGI_FORMAT values: BC1=71, BC2=74, BC3=77, BC4U=80, BC5U=83, BC6H_UF16=95, BC7=98
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-        # FourCC 'DX10'
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, 0x4, b'DX10', 0, 0, 0, 0, 0)
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-        # DDS_HEADER_DXT10
-        # resourceDimension=3 (TEXTURE2D), arraySize=1
-        dxt10 = struct.pack('<I I I I I', fmt_dxgi, 3, 0, 1, 0)
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + dxt10 + blocks_linear
-
-    def wrap_as_dds_dx5_bc3_linear(blocks_linear: bytes, width: int, height: int) -> bytes:
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-        DDPF_FOURCC = 0x4
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, DDPF_FOURCC, b'DXT5', 0, 0, 0, 0, 0)
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + blocks_linear
-    
-    def wrap_as_dds_dx10_bc7(blocks_linear: bytes, width: int, height: int) -> bytes:
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-
-        # Standard DDS header (no mipmaps)
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-
-        # Pixel format = 'DX10' extension
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, 0x4, b'DX10', 0, 0, 0, 0, 0)
-
-        # Caps
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-
-        # DDS_HEADER_DXT10: DXGI_FORMAT_BC7_UNORM = 98, TEXTURE2D=3, arraySize=1
-        dxt10 = struct.pack('<I I I I I', 98, 3, 0, 1, 0)
-
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + dxt10 + blocks_linear
 
     def _compact1by1(v: int) -> int:
         v &= 0x55555555

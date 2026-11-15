@@ -104,17 +104,14 @@ class FORZA_OT_generate_textures(Operator):
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
-            path_textures: list[Path] = list(path_bin.glob("*.bix"))
-            path_bin_textures: list[Path] = list(path_bin.glob("*.bin"))
+            path_textures_iter = path_bin.glob("*.bix")
+            path_bin_textures_iter = path_bin.glob("*.bin")
 
-            _populate_indexed_textures_from_track(path_textures, save_files=True)
+            filtered_path_bix_textures = [p for p in path_textures_iter if not p.name.endswith("_B.bix")]
+            _populate_indexed_textures_from_track(filtered_path_bix_textures, save_files=True)
 
-            filtered_path_bin_textures = [
-                f for f in path_bin_textures 
-                if not f.name.endswith('rmb.bin')
-            ]
-
-            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder), context.scene.forza_last_ribbon_folder)
+            filtered_path_bin_textures = [p for p in path_bin_textures_iter if not p.name.endswith("rmb.bin")]
+            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder), Path(context.scene.forza_last_ribbon_folder))
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -313,21 +310,19 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
     # compositing
     generate_blender_compositing(context.scene)
 
-def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
+def _populate_indexed_textures_from_track(path_textures: list[Path], save_files: bool = False):
     for i, path_texture in enumerate(path_textures):
-        filename = str(path_texture.resolve())
-        if not filename.endswith("_B.bix"):
-            img = Bix.get_image_from_bix(path_texture.resolve(), save_image=save_files)
-            texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
-            indexed_textures[texture_idx] = img
+        img = Bix.get_image_from_bix(path_texture, save_image=save_files)
+        texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
+        indexed_textures[texture_idx] = img
         if (i + 1) % 100 == 0:
             print(f"[{i + 1}/{len(path_textures)}]")
             bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
-def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, path_ribbon: str):
-    bin_path: Path = Path(track_path) / "bin"
-    textures_path: Path = bin_path / "textures"
-    path_ribbon_pvs: Path = next(Path(path_ribbon).glob("*.pvs"))
+def _populate_indexed_bin_textures_from_track(path_bin_textures: list[Path], track_path: Path, path_ribbon: Path):
+    bin_path = track_path / "bin"
+    textures_path = bin_path / "textures"
+    path_ribbon_pvs = next(path_ribbon.glob("*.pvs"))
     pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"), bin_path)
 
     known_stx_indexes = set()
