@@ -364,6 +364,17 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
     # uv
     generate_and_assign_uv_layers_to_mesh(blender_mesh, forza_mesh)
 
+    # attributes
+    if forza_mesh.vertices.tangent is not None:
+        layer = blender_mesh.attributes.new("TANGENT0", "FLOAT_VECTOR", "POINT")
+        layer.data.foreach_set("vector", forza_mesh.vertices.tangent.ravel())
+    if forza_mesh.vertices.binormal is not None:
+        layer = blender_mesh.attributes.new("BINORMAL0", "FLOAT_VECTOR", "POINT")
+        layer.data.foreach_set("vector", forza_mesh.vertices.binormal.ravel())
+    if forza_mesh.vertices.color is not None:
+        layer = blender_mesh.color_attributes.new("COLOR0", "FLOAT_COLOR", "POINT")
+        layer.data.foreach_set("color", forza_mesh.vertices.color.ravel())
+
     # material
     if context.scene.generate_mats:
         if context.scene.use_pregenerated_textures:
