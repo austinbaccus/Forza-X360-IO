@@ -218,7 +218,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -276,7 +276,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -356,7 +356,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -449,7 +449,7 @@ class Shaders:
         t2_uv_node = nodes.new("ShaderNodeVectorMath")
         t2_uv_node.operation = "MULTIPLY_ADD"
         t2_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
-        t2_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        t2_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[5], 0)
         links.new(uv0_map_node.outputs["UV"], t2_uv_node.inputs["Vector"])
 
         t2 = textures[2] # Diffuse_Texture
@@ -533,7 +533,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -586,7 +586,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -609,6 +609,8 @@ class Shaders:
         links.new(t2_u_node.outputs["Value"], t2_uv_node.inputs["X"])
 
         t2 = textures[2] # Palette
+        t2.nodes[0].interpolation = "Closest"
+        t2.nodes[0].extension = "CLIP"
         links.new(t2_uv_node.outputs["Vector"], t2.in_uv)
 
         # t7
@@ -674,7 +676,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -697,6 +699,8 @@ class Shaders:
         links.new(t2_u_node.outputs["Value"], t2_uv_node.inputs["X"])
 
         t2 = textures[2] # Palette
+        t2.nodes[0].interpolation = "Closest"
+        t2.nodes[0].extension = "CLIP"
         links.new(t2_uv_node.outputs["Vector"], t2.in_uv)
 
         # t7
@@ -816,7 +820,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (1 / c[3], 1 / c[5], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -1 / c[5], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - 1 / c[5], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -934,7 +938,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # TextureMap_4903
@@ -961,7 +965,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # TextureMap_4903
@@ -974,7 +978,7 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[5], 0)
         links.new(uv2_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Diff_Spec02
@@ -1056,7 +1060,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -1114,7 +1118,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Blend_A
@@ -1123,7 +1127,7 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[5], 0)
         links.new(uv0_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Blend_B
@@ -1136,7 +1140,7 @@ class Shaders:
         t2_uv_node = nodes.new("ShaderNodeVectorMath")
         t2_uv_node.operation = "MULTIPLY_ADD"
         t2_uv_node.inputs["Vector_001"].default_value = (c[8], c[9], 0)
-        t2_uv_node.inputs["Vector_002"].default_value = (0, -c[9], 0)
+        t2_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[9], 0)
         links.new(uv1_node.outputs["UV"], t2_uv_node.inputs["Vector"])
 
         t2 = textures[2] # Blend_Value
@@ -1192,7 +1196,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -1252,7 +1256,7 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[1], c[2], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[2], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[2], 0)
         links.new(uv2_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Diff_Spec02
@@ -1310,7 +1314,7 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[1], c[2], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[2], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[2], 0)
 
         t1 = textures[1] # Diff_Spec02
         #links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
@@ -1381,7 +1385,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv1_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diff_Spec02
@@ -1442,7 +1446,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -1468,7 +1472,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_map_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Diffuse_Texture
@@ -1632,11 +1636,23 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
+        t0_uv_separate_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(t0_uv_node.outputs["Vector"], t0_uv_separate_node.inputs["Vector"])
+
+        t0_v_clamp_node = nodes.new("ShaderNodeMath")
+        t0_v_clamp_node.operation = "FRACT"
+        links.new(t0_uv_separate_node.outputs["X"], t0_v_clamp_node.inputs["Value"])
+
+        t0_uv_combine_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(t0_v_clamp_node.outputs["Value"], t0_uv_combine_node.inputs["X"])
+        links.new(t0_uv_separate_node.outputs["Y"], t0_uv_combine_node.inputs["Y"])
+
         t0 = textures[0] # Diffuse_Texture
-        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+        t0.nodes[0].extension = "CLIP"
+        links.new(t0_uv_combine_node.outputs["Vector"], t0.in_uv)
 
         # t7
         uv2_node = nodes.new("ShaderNodeUVMap")
@@ -1685,7 +1701,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[4], c[5], 0)
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[5], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Blend_A
@@ -1694,7 +1710,7 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[8], c[9], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[9], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[9], 0)
         links.new(uv0_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Blend_B
@@ -1705,6 +1721,7 @@ class Shaders:
         uv2_node.uv_map = "TEXCOORD2"
 
         t2 = textures[2] # Blend_Value
+        t2.nodes[0].extension = "CLIP"
         t2.nodes[0].image.colorspace_settings.name = "Non-Color"
         links.new(uv2_node.outputs["UV"], t2.in_uv)
 
@@ -1900,7 +1917,7 @@ class Shaders:
         t0_uv_node = nodes.new("ShaderNodeVectorMath")
         t0_uv_node.operation = "MULTIPLY_ADD"
         t0_uv_node.inputs["Vector_001"].default_value = (c[4], c[4], 0) # NodeSocketVector
-        t0_uv_node.inputs["Vector_002"].default_value = (0, -c[4], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[4], 0)
         links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
 
         t0 = textures[0] # Blend_A
@@ -1909,7 +1926,7 @@ class Shaders:
         t3_uv_node = nodes.new("ShaderNodeVectorMath")
         t3_uv_node.operation = "MULTIPLY_ADD"
         t3_uv_node.inputs["Vector_001"].default_value = (c[6], c[6], 0)
-        t3_uv_node.inputs["Vector_002"].default_value = (0, -c[6], 0)
+        t3_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[6], 0)
         links.new(uv0_node.outputs["UV"], t3_uv_node.inputs["Vector"])
 
         t3 = textures[3] # Blend_C
@@ -1922,13 +1939,14 @@ class Shaders:
         t1_uv_node = nodes.new("ShaderNodeVectorMath")
         t1_uv_node.operation = "MULTIPLY_ADD"
         t1_uv_node.inputs["Vector_001"].default_value = (c[5], c[5], 0)
-        t1_uv_node.inputs["Vector_002"].default_value = (0, -c[5], 0)
+        t1_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[5], 0)
         links.new(uv1_node.outputs["UV"], t1_uv_node.inputs["Vector"])
 
         t1 = textures[1] # Blend_B
         links.new(t1_uv_node.outputs["Vector"], t1.in_uv)
 
         t2 = textures[2] # Blend_Value
+        t2.nodes[0].extension = "CLIP"
         t2.nodes[0].image.colorspace_settings.name = "Non-Color"
         links.new(uv1_node.outputs["UV"], t2.in_uv)
 
