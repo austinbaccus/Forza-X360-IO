@@ -3,6 +3,9 @@ from .pvs_util import *
 
 game_series = 0 # 0 - auto, 1 - Motorsport, 2 - Horizon
 
+# TrackSettings.xml
+sky_offset_z = -385 # SkyboxHeightOffset
+
 class PVSHeader:
     def __init__(self, version: int):
         self.version = version
@@ -245,6 +248,7 @@ class PVS:
             stream.skip(2 * unk2_length)
         else:
             sky_model_instance = PVSModelInstance.from_stream(stream, header.version)
+            sky_model_instance.transform[1][3] += sky_offset_z
             sky_model = PVSModel.from_stream(stream, -1)
         lone_models_instances_length = stream.read_u32()
         lone_models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(lone_models_instances_length)]

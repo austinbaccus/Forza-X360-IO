@@ -7,6 +7,8 @@ from forza_blender.forza.shaders.shaders_util import *
 dark_color = (0, 0, 0)
 light_color = (1.93, 1.93, 1.9)
 light_curve_white_point = 300.000061
+sky_scale = 1.2
+sky_gain = 0.11
 
 def generate_blender_compositing(scene: bpy.types.Scene):
     node_tree: bpy.types.CompositorNodeTree = bpy.data.node_groups.new("Compositor Nodes", type="CompositorNodeTree")
@@ -822,6 +824,42 @@ class Shaders:
         links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
 
         links.new(light_map_mix_node.outputs["Vector"], bsdf.in_rgb)
+
+        return mat
+
+    @staticmethod
+    def sky_diff_1(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
+        c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
+
+        t0_uv_node = nodes.new("ShaderNodeVectorMath")
+        t0_uv_node.operation = "MULTIPLY_ADD"
+        t0_uv_node.inputs["Vector_001"].default_value = (c[0], c[1], 0)
+        t0_uv_node.inputs["Vector_002"].default_value = (0, 1 - c[1], 0)
+        links.new(uv0_node.outputs["UV"], t0_uv_node.inputs["Vector"])
+
+        t0 = textures[0] # Diffuse_Texture
+        t0.nodes[0].extension = "CLIP"
+        links.new(t0_uv_node.outputs["Vector"], t0.in_uv)
+
+        # blend
+        factor_madd_node = nodes.new("ShaderNodeMath")
+        factor_madd_node.operation = "MULTIPLY_ADD"
+        factor_madd_node.inputs["Value_001"].default_value = sky_gain
+        factor_madd_node.inputs["Value_002"].default_value = sky_scale
+        links.new(t0.out_a, factor_madd_node.inputs["Value"])
+
+        diff_map_node = nodes.new("ShaderNodeVectorMath")
+        diff_map_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, diff_map_node.inputs["Vector"])
+        links.new(factor_madd_node.outputs["Value"], diff_map_node.inputs["Vector_001"])
+
+        links.new(diff_map_node.outputs["Vector"], bsdf.in_rgb)
 
         return mat
 #endregion
