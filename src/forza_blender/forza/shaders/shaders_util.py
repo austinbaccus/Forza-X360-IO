@@ -47,18 +47,27 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         texture_node.image = loaded_texture_image
         texture_node.image.colorspace_settings.name = "Non-Color"
 
+        in_uv = texture_node.inputs["Vector"]
+        out_rgb = texture_node.outputs["Color"]
+
         # if the image is from .stx.bin, create UV mapping node
         if is_stx and pvs_texture.u_scale != 1.0 and pvs_texture.v_scale != 1.0 and pvs_texture.u_translate != 0.0 and pvs_texture.v_translate != 0.0:
             uv_node = nodes.new("ShaderNodeVectorMath")
             uv_node.operation = "MULTIPLY_ADD"
             uv_node.inputs["Vector_001"].default_value = (pvs_texture.u_scale, pvs_texture.v_scale, 0)
             uv_node.inputs["Vector_002"].default_value = (pvs_texture.u_translate, -(pvs_texture.v_scale + pvs_texture.v_translate), 0)
-            links.new(uv_node.outputs["Vector"], texture_node.inputs["Vector"])
+            links.new(uv_node.outputs["Vector"], in_uv)
             in_uv = uv_node.inputs["Vector"]
-        else:
-            in_uv = texture_node.inputs["Vector"]
 
-        textures[i] = NodeWrapperTexture([texture_node], in_uv, texture_node.outputs["Color"], texture_node.outputs["Alpha"])
+        # PostProcess.fxobj, technique RoadDetailRotateAndBlurRGB
+        if (pvs_texture.flags & (0xF << 4)) != 0 and bpy.context.scene.forza_gray_road_texture: # Flag_RoadDetailMask
+            grayscale_node = nodes.new("ShaderNodeVectorMath")
+            grayscale_node.operation = "DOT_PRODUCT"
+            grayscale_node.inputs["Vector_001"].default_value = (0.2125, 0.7154, 0.0721)
+            links.new(out_rgb, grayscale_node.inputs["Vector"])
+            out_rgb = grayscale_node.outputs["Value"]
+
+        textures[i] = NodeWrapperTexture([texture_node], in_uv, out_rgb, texture_node.outputs["Alpha"])
 
     return textures
 

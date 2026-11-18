@@ -43,6 +43,12 @@ def register():
         default=True,
     )
 
+    bpy.types.Scene.forza_gray_road_texture = BoolProperty(
+        name="Grayscale road texture",
+        description="Convert road textures to grayscale",
+        default=True
+    )
+
     bpy.types.Scene.forza_last_track_folder = StringProperty(
         name="Selected Track Folder",
         subtype='DIR_PATH',
@@ -82,3 +88,5 @@ def unregister():
         del bpy.types.Scene.generate_mats
     if hasattr(bpy.types.Scene, "generate_lods"):
         del bpy.types.Scene.generate_lods
+    if hasattr(bpy.types.Scene, "forza_gray_road_texture"):
+        del bpy.types.Scene.forza_gray_road_texture
