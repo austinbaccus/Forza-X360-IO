@@ -1368,7 +1368,394 @@ class Shaders:
 #region ocean
     @staticmethod
     def ocean_anim_norm_refl_5(forza_mesh: ForzaMesh, path_last_texture_folder, shader_name: str, material_index: int):
-        mat, _, _, _ = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        vs_c = forza_mesh.track_bin.material_sets[0].materials[material_index].vertex_shader_constants
+        ps_c = forza_mesh.track_bin.material_sets[0].materials[material_index].pixel_shader_constants
+        mat, _, bsdf, textures = Shaders.base(forza_mesh, path_last_texture_folder, shader_name, material_index)
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+
+        # t0
+        uv0_node = nodes.new("ShaderNodeUVMap")
+        uv0_node.uv_map = "TEXCOORD0"
+
+        t1_a_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_a_uv_node.operation = "MULTIPLY_ADD"
+        t1_a_uv_node.inputs["Vector_001"].default_value = (vs_c[19], vs_c[19], 0)
+        t1_a_uv_node.inputs["Vector_002"].default_value = (0, 1 - vs_c[19], 0)
+        links.new(uv0_node.outputs["UV"], t1_a_uv_node.inputs["Vector"])
+
+        t1_a = textures[1] # NormalMapA
+        t1_a_node = t1_a.nodes[0]
+        links.new(t1_a_uv_node.outputs["Vector"], t1_a.in_uv)
+
+        t1_b_uv_node = nodes.new("ShaderNodeVectorMath")
+        t1_b_uv_node.operation = "MULTIPLY_ADD"
+        t1_b_uv_node.inputs["Vector_001"].default_value = (vs_c[23], vs_c[23], 0)
+        t1_b_uv_node.inputs["Vector_002"].default_value = (0, 1 - vs_c[23], 0)
+        links.new(uv0_node.outputs["UV"], t1_b_uv_node.inputs["Vector"])
+
+        t1_a_mad_node = nodes.new("ShaderNodeVectorMath")
+        t1_a_mad_node.operation = "MULTIPLY_ADD"
+        t1_a_mad_node.inputs["Vector_001"].default_value = (2, 2, 0)
+        t1_a_mad_node.inputs["Vector_002"].default_value = (-1, -1, 0)
+        links.new(t1_a.out_rgb, t1_a_mad_node.inputs["Vector"])
+
+        t1_b_node = nodes.new("ShaderNodeTexImage") # NormalMapA
+        t1_b_node.label = F"{t1_a_node.label} copy"
+        t1_b_node.image = t1_a_node.image
+        links.new(t1_b_uv_node.outputs["Vector"], t1_b_node.inputs["Vector"])
+
+        t1_b_mad_node = nodes.new("ShaderNodeVectorMath")
+        t1_b_mad_node.operation = "MULTIPLY_ADD"
+        t1_b_mad_node.inputs["Vector_001"].default_value = (2, 2, 0)
+        t1_b_mad_node.inputs["Vector_002"].default_value = (-1, -1, 0)
+        links.new(t1_b_node.outputs["Color"], t1_b_mad_node.inputs["Vector"])
+
+        # blend
+        add_a_b_node = nodes.new("ShaderNodeVectorMath")
+        add_a_b_node.operation = "ADD"
+        links.new(t1_a_mad_node.outputs["Vector"], add_a_b_node.inputs["Vector"])
+        links.new(t1_b_mad_node.outputs["Vector"], add_a_b_node.inputs["Vector_001"])
+
+        mul_a_b_node = nodes.new("ShaderNodeVectorMath")
+        mul_a_b_node.operation = "MULTIPLY"
+        mul_a_b_node.inputs["Vector_001"].default_value = (0.5, 0.5, 0)
+        links.new(add_a_b_node.outputs["Vector"], mul_a_b_node.inputs["Vector"])
+
+        # normal Z
+        norm_z_dot_node = nodes.new("ShaderNodeVectorMath")
+        norm_z_dot_node.operation = "DOT_PRODUCT"
+        links.new(mul_a_b_node.outputs["Vector"], norm_z_dot_node.inputs["Vector"])
+        links.new(mul_a_b_node.outputs["Vector"], norm_z_dot_node.inputs["Vector_001"])
+
+        norm_z_sub_node = nodes.new("ShaderNodeMath")
+        norm_z_sub_node.operation = "SUBTRACT"
+        norm_z_sub_node.inputs["Value"].default_value = 1
+        links.new(norm_z_dot_node.outputs["Value"], norm_z_sub_node.inputs["Value_001"])
+
+        norm_z_abs_node = nodes.new("ShaderNodeMath")
+        norm_z_abs_node.operation = "ABSOLUTE"
+        links.new(norm_z_sub_node.outputs["Value"], norm_z_abs_node.inputs["Value"])
+
+        norm_z_node = nodes.new("ShaderNodeMath")
+        norm_z_node.operation = "SQRT"
+        links.new(norm_z_abs_node.outputs["Value"], norm_z_node.inputs["Value"])
+
+        # face space normal
+        norm_xy_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(mul_a_b_node.outputs["Vector"], norm_xy_node.inputs["Vector"])
+
+        norm_combine_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(norm_xy_node.outputs["X"], norm_combine_node.inputs["X"])
+        links.new(norm_xy_node.outputs["Y"], norm_combine_node.inputs["Y"])
+        links.new(norm_z_node.outputs["Value"], norm_combine_node.inputs["Z"])
+
+        norm_mul_node = nodes.new("ShaderNodeVectorMath")
+        norm_mul_node.operation = "MULTIPLY"
+        norm_mul_node.inputs["Vector_001"].default_value = (vs_c[16], vs_c[16], 1)
+        links.new(norm_combine_node.outputs["Vector"], norm_mul_node.inputs["Vector"])
+
+        norm_node = nodes.new("ShaderNodeVectorMath")
+        norm_node.operation = "NORMALIZE"
+        links.new(norm_mul_node.outputs["Vector"], norm_node.inputs["Vector"])
+
+        norm_separate_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(norm_node.outputs["Vector"], norm_separate_node.inputs["Vector"])
+
+        # tangent
+        tangent_attr_node = nodes.new("ShaderNodeAttribute")
+        tangent_attr_node.attribute_name = "BINORMAL0"
+
+        tangent_tr_node = nodes.new("ShaderNodeVectorTransform")
+        tangent_tr_node.convert_from = "OBJECT"
+        tangent_tr_node.convert_to = "WORLD"
+        links.new(tangent_attr_node.outputs["Vector"], tangent_tr_node.inputs["Vector"])
+
+        # bitangent
+        bitangent_attr_node = nodes.new("ShaderNodeAttribute")
+        bitangent_attr_node.attribute_name = "TANGENT0"
+
+        bitangent_node = nodes.new("ShaderNodeVectorMath")
+        bitangent_node.operation = "MULTIPLY"
+        bitangent_node.inputs["Vector_001"].default_value = (-1, -1, -1)
+        links.new(bitangent_attr_node.outputs["Vector"], bitangent_node.inputs["Vector"])
+
+        bitangent_tr_node = nodes.new("ShaderNodeVectorTransform")
+        bitangent_tr_node.convert_from = "OBJECT"
+        bitangent_tr_node.convert_to = "WORLD"
+        links.new(bitangent_node.outputs["Vector"], bitangent_tr_node.inputs["Vector"])
+
+        # normal
+        normal_tr_node = nodes.new("ShaderNodeVectorTransform")
+        normal_tr_node.convert_from = "OBJECT"
+        normal_tr_node.convert_to = "WORLD"
+        normal_tr_node.inputs["Vector"].default_value = (0, 1, 0)
+
+        # world space normal
+        normal_w_n_node = nodes.new("ShaderNodeVectorMath")
+        normal_w_n_node.operation = "MULTIPLY"
+        links.new(normal_tr_node.outputs["Vector"], normal_w_n_node.inputs["Vector"])
+        links.new(norm_separate_node.outputs["Z"], normal_w_n_node.inputs["Vector_001"])
+
+        normal_w_t_node = nodes.new("ShaderNodeVectorMath")
+        normal_w_t_node.operation = "MULTIPLY_ADD"
+        links.new(bitangent_tr_node.outputs["Vector"], normal_w_t_node.inputs["Vector"])
+        links.new(norm_separate_node.outputs["Y"], normal_w_t_node.inputs["Vector_001"])
+        links.new(normal_w_n_node.outputs["Vector"], normal_w_t_node.inputs["Vector_002"])
+
+        normal_w_b_node = nodes.new("ShaderNodeVectorMath")
+        normal_w_b_node.operation = "MULTIPLY_ADD"
+        links.new(tangent_tr_node.outputs["Vector"], normal_w_b_node.inputs["Vector"])
+        links.new(norm_separate_node.outputs["X"], normal_w_b_node.inputs["Vector_001"])
+        links.new(normal_w_t_node.outputs["Vector"], normal_w_b_node.inputs["Vector_002"])
+
+        #
+        geometry_node = nodes.new("ShaderNodeNewGeometry")
+
+        nov_node = nodes.new("ShaderNodeVectorMath")
+        nov_node.operation = "DOT_PRODUCT"
+        links.new(normal_w_b_node.outputs["Vector"], nov_node.inputs["Vector"])
+        links.new(geometry_node.outputs["Incoming"], nov_node.inputs["Vector_001"])
+
+        nov_clamp_node = nodes.new("ShaderNodeClamp")
+        links.new(nov_node.outputs["Value"], nov_clamp_node.inputs["Value"])
+
+        nov_mad_node = nodes.new("ShaderNodeMath")
+        nov_mad_node.operation = "MULTIPLY_ADD"
+        nov_mad_node.use_clamp = True
+        nov_mad_node.inputs["Value_001"].default_value = -ps_c[11]
+        nov_mad_node.inputs["Value_002"].default_value = 1
+        links.new(nov_clamp_node.outputs["Result"], nov_mad_node.inputs["Value"])
+
+        color_node = nodes.new("ShaderNodeMix")
+        color_node.data_type = "VECTOR"
+        color_node.factor_mode = "UNIFORM"
+        color_node.inputs["A"].default_value = (ps_c[4], ps_c[5], ps_c[6])
+        color_node.inputs["B"].default_value = (ps_c[0], ps_c[1], ps_c[2])
+        links.new(nov_mad_node.outputs["Value"], color_node.inputs["Factor"])
+
+        # foam
+        foam_abs_node = nodes.new("ShaderNodeMath")
+        foam_abs_node.operation = "ABSOLUTE"
+        links.new(norm_separate_node.outputs["X"], foam_abs_node.inputs["Value"])
+
+        vertex_color_node = nodes.new("ShaderNodeVertexColor")
+        vertex_color_node.layer_name = "COLOR0"
+
+        foam_mix_node = nodes.new("ShaderNodeMath")
+        foam_mix_node.operation = "MULTIPLY"
+        links.new(foam_abs_node.outputs["Value"], foam_mix_node.inputs["Value"])
+        links.new(vertex_color_node.outputs["Alpha"], foam_mix_node.inputs["Value_001"])
+
+        foam_mul_node = nodes.new("ShaderNodeMath")
+        foam_mul_node.operation = "MULTIPLY"
+        foam_mul_node.inputs["Value_001"].default_value = 2
+        links.new(foam_mix_node.outputs["Value"], foam_mul_node.inputs["Value"])
+
+        #
+        blend_node = nodes.new("ShaderNodeVectorMath")
+        blend_node.operation = "ADD"
+        links.new(color_node.outputs["Result"], blend_node.inputs["Vector"])
+        links.new(foam_mul_node.outputs["Value"], blend_node.inputs["Vector_001"])
+
+        light_map_remap_node = nodes.new("ShaderNodeMix")
+        light_map_remap_node.data_type = "VECTOR"
+        light_map_remap_node.factor_mode = "NON_UNIFORM"
+        light_map_remap_node.inputs["A"].default_value = dark_color
+        light_map_remap_node.inputs["B"].default_value = light_color
+        links.new(vertex_color_node.outputs["Color"], light_map_remap_node.inputs["Factor"])
+
+        light_map_mix_node = nodes.new("ShaderNodeVectorMath")
+        light_map_mix_node.operation = "MULTIPLY"
+        links.new(blend_node.outputs["Vector"], light_map_mix_node.inputs["Vector"])
+        links.new(light_map_remap_node.outputs["Result"], light_map_mix_node.inputs["Vector_001"])
+
+        # cubemap
+        view_dir_neg_node = nodes.new("ShaderNodeVectorMath")
+        view_dir_neg_node.operation = "MULTIPLY"
+        view_dir_neg_node.inputs["Vector_001"].default_value = (-1, -1, -1)
+        links.new(geometry_node.outputs["Incoming"], view_dir_neg_node.inputs["Vector"])
+
+        reflect_node = nodes.new("ShaderNodeVectorMath")
+        reflect_node.operation = "REFLECT"
+        links.new(view_dir_neg_node.outputs["Vector"], reflect_node.inputs["Vector"])
+        links.new(normal_w_b_node.outputs["Vector"], reflect_node.inputs["Vector_001"])
+
+        # cubemap - in
+        cube_vec_separate_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(reflect_node.outputs["Vector"], cube_vec_separate_node.inputs["Vector"])
+
+        cube_vec_abs_node = nodes.new("ShaderNodeVectorMath")
+        cube_vec_abs_node.operation = "ABSOLUTE"
+        links.new(reflect_node.outputs["Vector"], cube_vec_abs_node.inputs["Vector"])
+
+        cube_vec_abs_separate_node = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(cube_vec_abs_node.outputs["Vector"], cube_vec_abs_separate_node.inputs["Vector"])
+
+        # cubemap - X
+        cube_x_combine_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(cube_vec_separate_node.outputs["Y"], cube_x_combine_node.inputs["X"])
+        links.new(cube_vec_separate_node.outputs["Z"], cube_x_combine_node.inputs["Y"])
+
+        cube_x_div_node = nodes.new("ShaderNodeVectorMath")
+        cube_x_div_node.operation = "DIVIDE"
+        links.new(cube_x_combine_node.outputs["Vector"], cube_x_div_node.inputs["Vector"])
+        links.new(cube_vec_abs_separate_node.outputs["X"], cube_x_div_node.inputs["Vector_001"])
+
+        cube_x_p_node = nodes.new("ShaderNodeVectorMath")
+        cube_x_p_node.operation = "MULTIPLY_ADD"
+        cube_x_p_node.inputs["Vector_001"].default_value = (-0.5, 0.5, 0)
+        cube_x_p_node.inputs["Vector_002"].default_value = (0.5, 5.5, 0)
+        links.new(cube_x_div_node.outputs["Vector"], cube_x_p_node.inputs["Vector"])
+
+        cube_x_n_node = nodes.new("ShaderNodeVectorMath")
+        cube_x_n_node.operation = "MULTIPLY_ADD"
+        cube_x_n_node.inputs["Vector_001"].default_value = (0.5, 0.5, 0)
+        cube_x_n_node.inputs["Vector_002"].default_value = (0.5, 4.5, 0)
+        links.new(cube_x_div_node.outputs["Vector"], cube_x_n_node.inputs["Vector"])
+
+        cube_x_cmp_node = nodes.new("ShaderNodeMath")
+        cube_x_cmp_node.operation = "GREATER_THAN"
+        cube_x_cmp_node.inputs["Value_001"].default_value = 0
+        links.new(cube_vec_separate_node.outputs["X"], cube_x_cmp_node.inputs["Value"])
+
+        cube_x_mix_node = nodes.new("ShaderNodeMix")
+        cube_x_mix_node.data_type = "VECTOR"
+        links.new(cube_x_cmp_node.outputs["Value"], cube_x_mix_node.inputs["Factor"])
+        links.new(cube_x_n_node.outputs["Vector"], cube_x_mix_node.inputs["A"])
+        links.new(cube_x_p_node.outputs["Vector"], cube_x_mix_node.inputs["B"])
+
+        # cubemap - Y
+        cube_y_combine_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(cube_vec_separate_node.outputs["X"], cube_y_combine_node.inputs["X"])
+        links.new(cube_vec_separate_node.outputs["Z"], cube_y_combine_node.inputs["Y"])
+
+        cube_y_div_node = nodes.new("ShaderNodeVectorMath")
+        cube_y_div_node.operation = "DIVIDE"
+        links.new(cube_y_combine_node.outputs["Vector"], cube_y_div_node.inputs["Vector"])
+        links.new(cube_vec_abs_separate_node.outputs["Y"], cube_y_div_node.inputs["Vector_001"])
+
+        cube_y_p_node = nodes.new("ShaderNodeVectorMath")
+        cube_y_p_node.operation = "MULTIPLY_ADD"
+        cube_y_p_node.inputs["Vector_001"].default_value = (0.5, 0.5, 0)
+        cube_y_p_node.inputs["Vector_002"].default_value = (0.5, 1.5, 0)
+        links.new(cube_y_div_node.outputs["Vector"], cube_y_p_node.inputs["Vector"])
+
+        cube_y_n_node = nodes.new("ShaderNodeVectorMath")
+        cube_y_n_node.operation = "MULTIPLY_ADD"
+        cube_y_n_node.inputs["Vector_001"].default_value = (-0.5, 0.5, 0)
+        cube_y_n_node.inputs["Vector_002"].default_value = (0.5, 0.5, 0)
+        links.new(cube_y_div_node.outputs["Vector"], cube_y_n_node.inputs["Vector"])
+
+        cube_y_cmp_node = nodes.new("ShaderNodeMath")
+        cube_y_cmp_node.operation = "GREATER_THAN"
+        cube_y_cmp_node.inputs["Value_001"].default_value = 0
+        links.new(cube_vec_separate_node.outputs["Y"], cube_y_cmp_node.inputs["Value"])
+
+        cube_y_mix_node = nodes.new("ShaderNodeMix")
+        cube_y_mix_node.data_type = "VECTOR"
+        links.new(cube_y_cmp_node.outputs["Value"], cube_y_mix_node.inputs["Factor"])
+        links.new(cube_y_n_node.outputs["Vector"], cube_y_mix_node.inputs["A"])
+        links.new(cube_y_p_node.outputs["Vector"], cube_y_mix_node.inputs["B"])
+
+        # cubemap - Z
+        cube_z_combine_node = nodes.new("ShaderNodeCombineXYZ")
+        links.new(cube_vec_separate_node.outputs["X"], cube_z_combine_node.inputs["X"])
+        links.new(cube_vec_separate_node.outputs["Y"], cube_z_combine_node.inputs["Y"])
+
+        cube_z_div_node = nodes.new("ShaderNodeVectorMath")
+        cube_z_div_node.operation = "DIVIDE"
+        links.new(cube_z_combine_node.outputs["Vector"], cube_z_div_node.inputs["Vector"])
+        links.new(cube_vec_abs_separate_node.outputs["Z"], cube_z_div_node.inputs["Vector_001"])
+
+        cube_z_p_node = nodes.new("ShaderNodeVectorMath")
+        cube_z_p_node.operation = "MULTIPLY_ADD"
+        cube_z_p_node.inputs["Vector_001"].default_value = (0.5, -0.5, 0)
+        cube_z_p_node.inputs["Vector_002"].default_value = (0.5, 3.5, 0)
+        links.new(cube_z_div_node.outputs["Vector"], cube_z_p_node.inputs["Vector"])
+
+        cube_z_n_node = nodes.new("ShaderNodeVectorMath")
+        cube_z_n_node.operation = "MULTIPLY_ADD"
+        cube_z_n_node.inputs["Vector_001"].default_value = (0.5, 0.5, 0)
+        cube_z_n_node.inputs["Vector_002"].default_value = (0.5, 2.5, 0)
+        links.new(cube_z_div_node.outputs["Vector"], cube_z_n_node.inputs["Vector"])
+
+        cube_z_cmp_node = nodes.new("ShaderNodeMath")
+        cube_z_cmp_node.operation = "GREATER_THAN"
+        cube_z_cmp_node.inputs["Value_001"].default_value = 0
+        links.new(cube_vec_separate_node.outputs["Z"], cube_z_cmp_node.inputs["Value"])
+
+        cube_z_mix_node = nodes.new("ShaderNodeMix")
+        cube_z_mix_node.data_type = "VECTOR"
+        links.new(cube_z_cmp_node.outputs["Value"], cube_z_mix_node.inputs["Factor"])
+        links.new(cube_z_n_node.outputs["Vector"], cube_z_mix_node.inputs["A"])
+        links.new(cube_z_p_node.outputs["Vector"], cube_z_mix_node.inputs["B"])
+
+        # cubemap - mix
+        cube_yx_cmp_node = nodes.new("ShaderNodeMath")
+        cube_yx_cmp_node.operation = "GREATER_THAN"
+        links.new(cube_vec_abs_separate_node.outputs["Y"], cube_yx_cmp_node.inputs["Value"])
+        links.new(cube_vec_abs_separate_node.outputs["X"], cube_yx_cmp_node.inputs["Value_001"])
+
+        cube_yz_cmp_node = nodes.new("ShaderNodeMath")
+        cube_yz_cmp_node.operation = "GREATER_THAN"
+        links.new(cube_vec_abs_separate_node.outputs["Y"], cube_yz_cmp_node.inputs["Value"])
+        links.new(cube_vec_abs_separate_node.outputs["Z"], cube_yz_cmp_node.inputs["Value_001"])
+
+        cube_yx_yz_cmp_node = nodes.new("ShaderNodeMath")
+        cube_yx_yz_cmp_node.operation = "MULTIPLY"
+        links.new(cube_yx_cmp_node.outputs["Value"], cube_yx_yz_cmp_node.inputs["Value"])
+        links.new(cube_yz_cmp_node.outputs["Value"], cube_yx_yz_cmp_node.inputs["Value_001"])
+
+        cube_yz_mix_node = nodes.new("ShaderNodeMix")
+        cube_yz_mix_node.data_type = "VECTOR"
+        links.new(cube_yx_yz_cmp_node.outputs["Value"], cube_yz_mix_node.inputs["Factor"])
+        links.new(cube_z_mix_node.outputs["Result"], cube_yz_mix_node.inputs["A"])
+        links.new(cube_y_mix_node.outputs["Result"], cube_yz_mix_node.inputs["B"])
+
+        cube_xy_cmp_node = nodes.new("ShaderNodeMath")
+        cube_xy_cmp_node.operation = "GREATER_THAN"
+        links.new(cube_vec_abs_separate_node.outputs["X"], cube_xy_cmp_node.inputs["Value"])
+        links.new(cube_vec_abs_separate_node.outputs["Y"], cube_xy_cmp_node.inputs["Value_001"])
+
+        cube_xz_cmp_node = nodes.new("ShaderNodeMath")
+        cube_xz_cmp_node.operation = "GREATER_THAN"
+        links.new(cube_vec_abs_separate_node.outputs["X"], cube_xz_cmp_node.inputs["Value"])
+        links.new(cube_vec_abs_separate_node.outputs["Z"], cube_xz_cmp_node.inputs["Value_001"])
+
+        cube_xy_xz_cmp_node = nodes.new("ShaderNodeMath")
+        cube_xy_xz_cmp_node.operation = "MULTIPLY"
+        links.new(cube_xy_cmp_node.outputs["Value"], cube_xy_xz_cmp_node.inputs["Value"])
+        links.new(cube_xz_cmp_node.outputs["Value"], cube_xy_xz_cmp_node.inputs["Value_001"])
+
+        cube_mix_node = nodes.new("ShaderNodeMix")
+        cube_mix_node.data_type = "VECTOR"
+        links.new(cube_xy_xz_cmp_node.outputs["Value"], cube_mix_node.inputs["Factor"])
+        links.new(cube_yz_mix_node.outputs["Result"], cube_mix_node.inputs["A"])
+        links.new(cube_x_mix_node.outputs["Result"], cube_mix_node.inputs["B"])
+
+        cube_node = nodes.new("ShaderNodeVectorMath")
+        cube_node.operation = "DIVIDE"
+        cube_node.inputs["Vector_001"].default_value = (1, 6, 1)
+        links.new(cube_mix_node.outputs["Result"], cube_node.inputs["Vector"])
+
+        t0 = textures[0] # CubeMap
+        t0.nodes[0].extension = "CLIP"
+        links.new(cube_node.outputs["Vector"], t0.in_uv)
+
+        cube_mul_node = nodes.new("ShaderNodeVectorMath")
+        cube_mul_node.operation = "MULTIPLY"
+        links.new(t0.out_rgb, cube_mul_node.inputs["Vector"])
+        links.new(nov_mad_node.outputs["Value"], cube_mul_node.inputs["Vector_001"])
+
+        cube_mad_node = nodes.new("ShaderNodeVectorMath")
+        cube_mad_node.operation = "MULTIPLY_ADD"
+        cube_mad_node.inputs["Vector_001"].default_value = (ps_c[8], ps_c[8], ps_c[8])
+        links.new(cube_mul_node.outputs["Vector"], cube_mad_node.inputs["Vector"])
+        links.new(light_map_mix_node.outputs["Vector"], cube_mad_node.inputs["Vector_002"])
+
+        #
+        links.new(cube_mad_node.outputs["Vector"], bsdf.in_rgb)
+
         return mat
 #endregion
 
