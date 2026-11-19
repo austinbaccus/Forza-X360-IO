@@ -2,7 +2,7 @@ import bpy # type: ignore
 import math
 from pathlib import Path
 from forza_blender.forza.pvs.pvs_util import BinaryStream
-from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.pvs.read_pvs import PVS, PVSModel
 from forza_blender.forza.shaders.read_shader import FXLShader
 from forza_blender.forza.textures.read_bin import CAFF
 from mathutils import Matrix # type: ignore
@@ -21,12 +21,12 @@ indexed_textures = {}
 class FORZA_OT_track_import(Operator):
     bl_idname = "forza.import_track"
     bl_label = "Import Track Models"
-    
+
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             _import_fm3(context, context.scene.forza_last_track_folder, context.scene.forza_last_ribbon_folder)
         return {'FINISHED'}
-    
+
 class FORZA_OT_track_import_modal(Operator):
     bl_idname = "forza.import_track_modal"
     bl_label = "Import Track"
@@ -100,7 +100,7 @@ class FORZA_OT_track_import_modal(Operator):
 class FORZA_OT_generate_textures(Operator):
     bl_idname = "forza.generate_textures"
     bl_label = "Generate Textures"
-    
+
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
@@ -134,7 +134,7 @@ class FORZA_OT_pick_track_folder(Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-    
+
 class FORZA_OT_pick_ribbon_folder(Operator):
     """Choose a folder and return its path"""
     bl_idname = "forza.pick_ribbon_folder"
@@ -155,7 +155,7 @@ class FORZA_OT_pick_ribbon_folder(Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-    
+
 class FORZA_OT_pick_texture_folder(Operator):
     """Choose a folder and return its path"""
     bl_idname = "forza.pick_texture_folder"
@@ -252,12 +252,17 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
     model_collections = [None] * len(model_meshes)
 
     # for each mesh in model_meshes, add it to the scene
-    for i, (model_index, _, model_filename) in enumerate(models_to_load):
-        if model_meshes[model_index] is None:
+    for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
+        if model_meshes[model_index] is not None:
+            collection = bpy.data.collections.new(f"{model_filename} {model_meshes[model_index][0].track_section.name}")
+            for mesh in model_meshes[model_index]:
+                _add_mesh_to_scene(context, mesh, collection)
+        elif context.scene.forza_import_bbox:
+            collection = bpy.data.collections.new(model_filename)
+        else:
             continue
-        collection = bpy.data.collections.new(F"{model_filename} {model_meshes[model_index][0].track_section.name}")
-        for mesh in model_meshes[model_index]:
-            _add_mesh_to_scene(context, mesh, collection)
+        if context.scene.forza_import_bbox:
+            _add_bbox_to_scene(context, pvs_model, collection, model_filename)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
         if (i + 1) % 100 == 0 or i + 1 == len(models_to_load):
@@ -344,7 +349,7 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures: list[Path], tra
         if dds is not None:
             image_filename = F"{file_name}.dds"
             image_filepath = textures_path / image_filename
-            with open(image_filepath.resolve(), 'wb') as f: 
+            with open(image_filepath.resolve(), 'wb') as f:
                 f.write(dds)
         else:
             print("Could not extract texture from .bin")
@@ -386,3 +391,14 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
 
     collection.objects.link(obj)
 
+def _add_bbox_to_scene(context: bpy.types.Context, pvs_model: PVSModel, collection: bpy.types.Collection, model_filename: str):
+    if not context.scene.forza_import_bbox:
+        return
+
+    obj = bpy.data.objects.new(f"{model_filename} bbox", None)
+    obj.empty_display_type = "CUBE"
+    transform = Matrix(pvs_model.bbox_transform)
+    transform.transpose()
+    transform @= Matrix.Diagonal(pvs_model.bbox_scale)
+    obj.matrix_world = transform
+    collection.objects.link(obj)

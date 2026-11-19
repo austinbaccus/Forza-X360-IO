@@ -49,6 +49,11 @@ def register():
         default=True
     )
 
+    bpy.types.Scene.forza_import_bbox = BoolProperty(
+        name="Import bounding boxes",
+        default=False
+    )
+
     bpy.types.Scene.forza_last_track_folder = StringProperty(
         name="Selected Track Folder",
         subtype='DIR_PATH',
@@ -90,3 +95,5 @@ def unregister():
         del bpy.types.Scene.generate_lods
     if hasattr(bpy.types.Scene, "forza_gray_road_texture"):
         del bpy.types.Scene.forza_gray_road_texture
+    if hasattr(bpy.types.Scene, "forza_import_bbox"):
+        del bpy.types.Scene.forza_import_bbox
