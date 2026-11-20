@@ -3,14 +3,14 @@ from pathlib import Path
 from forza_blender.forza.models.forza_mesh import ForzaMesh
 from forza_blender.forza.models.read_rmbbin import RmbBin
 from forza_blender.forza.pvs.pvs_util import BinaryStream
-from forza_blender.forza.pvs.read_pvs import PVS, PVSTexture
+from forza_blender.forza.pvs.read_pvs import PVS, PVSModelInstance, PVSTexture
 from forza_blender.forza.shaders.read_shader import FXLShader
 
 allow_no_material = False # guessing vertex layout for meshes that have no material
 
-def generate_meshes_from_pvs_model_instance(pvs_model_instance, pvs, rmbbin_files, shaders, context):
+def generate_meshes_from_pvs_model_instance(pvs_model_instance: PVSModelInstance, pvs, rmbbin_files, shaders, context):
     try:
-        if not context.scene.generate_lods and (pvs_model_instance.flags & (1 << 11)) == 0 and (pvs_model_instance.flags & (6 << 11)) != 0:
+        if not pvs_model_instance.is_visible(context.scene):
             return None
 
         pvs_model = pvs.models[pvs_model_instance.model_index]
@@ -30,7 +30,7 @@ def generate_meshes_from_pvs(path_bin, path_ribbon_pvs, context):
     pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"))
     shaders: dict[str, FXLShader] = get_shaders(path_bin, pvs)
 
-    pvs_model_instances = [model_instance for model_instance in pvs.models_instances if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances = [model_instance for model_instance in pvs.models_instances if model_instance.is_visible(context.scene)]
     pvs_model_instances.extend([model_instance for model_instance in pvs.lone_models_instances])
 
     unique_model_indexes = set([model_instance.model_index for model_instance in pvs_model_instances])

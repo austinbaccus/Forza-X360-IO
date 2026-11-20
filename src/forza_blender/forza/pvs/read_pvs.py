@@ -1,3 +1,4 @@
+import bpy
 from pathlib import Path
 from .pvs_util import *
 
@@ -154,6 +155,17 @@ class PVSModelInstance:
                 [0, 0, 0, 1]
             ]
         return PVSModelInstance(model_index, parent_lod_model_instance_offset, flags, texture, model_data, transform)
+
+    def is_visible(self, scene: bpy.types.Scene):
+        # SubsetMask_LOD0/1/2
+        if not scene.generate_lods and (self.flags & (1 << 11)) == 0 and (self.flags & (6 << 11)) != 0:
+            return False
+        if game_series == 2:
+            if (self.flags & (1 << 23)) != 0: # SubsetMask_ShadowOnly
+                return False
+            if (self.flags & (1 << 24)) != 0: # SubsetMask_CubemapOnly
+                return False
+        return True
 
 class PVSModel:
     def __init__(self, model_index: int, textures: list[int], shaders: list[int], bbox_transform: list[list[int]], bbox_scale: list[int]):

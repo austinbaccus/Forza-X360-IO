@@ -211,7 +211,7 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
         texture_files[i] = (pvs_texture, file_index, is_stx)
 
     # figure out which models need to be loaded
-    pvs_model_instances = [(i, model_instance) for i, model_instance in enumerate(pvs.models_instances) if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances = [(i, model_instance) for i, model_instance in enumerate(pvs.models_instances) if model_instance.is_visible(context.scene)]
     pvs_model_instances.extend([(None, model_instance) for model_instance in pvs.lone_models_instances])
     unique_model_indexes = set([model_instance.model_index for _, model_instance in pvs_model_instances])
     models_to_load = [(model_index, pvs.models[model_index], F"{model_index:05d}") for model_index in unique_model_indexes]
