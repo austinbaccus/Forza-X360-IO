@@ -2,7 +2,7 @@ import bpy # type: ignore
 import math
 from pathlib import Path
 from forza_blender.forza.pvs.pvs_util import BinaryStream
-from forza_blender.forza.pvs.read_pvs import PVS
+from forza_blender.forza.pvs.read_pvs import PVS, PVSModel
 from forza_blender.forza.shaders.read_shader import FXLShader
 from forza_blender.forza.textures.read_bin import CAFF
 from mathutils import Matrix # type: ignore
@@ -21,12 +21,12 @@ indexed_textures = {}
 class FORZA_OT_track_import(Operator):
     bl_idname = "forza.import_track"
     bl_label = "Import Track Models"
-    
+
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             _import_fm3(context, context.scene.forza_last_track_folder, context.scene.forza_last_ribbon_folder)
         return {'FINISHED'}
-    
+
 class FORZA_OT_track_import_modal(Operator):
     bl_idname = "forza.import_track_modal"
     bl_label = "Import Track"
@@ -100,21 +100,18 @@ class FORZA_OT_track_import_modal(Operator):
 class FORZA_OT_generate_textures(Operator):
     bl_idname = "forza.generate_textures"
     bl_label = "Generate Textures"
-    
+
     def execute(self, context):
         if context.scene.forza_selection == "FM3":
             path_bin: Path = Path(context.scene.forza_last_track_folder) / "bin"
-            path_textures: list[Path] = list(path_bin.glob("*.bix"))
-            path_bin_textures: list[Path] = list(path_bin.glob("*.bin"))
+            path_textures_iter = path_bin.glob("*.bix")
+            path_bin_textures_iter = path_bin.glob("*.bin")
 
-            _populate_indexed_textures_from_track(path_textures, save_files=True)
+            filtered_path_bix_textures = [p for p in path_textures_iter if not p.name.endswith("_B.bix")]
+            _populate_indexed_textures_from_track(filtered_path_bix_textures, save_files=True)
 
-            filtered_path_bin_textures = [
-                f for f in path_bin_textures 
-                if not f.name.endswith('rmb.bin')
-            ]
-
-            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder), context.scene.forza_last_ribbon_folder)
+            filtered_path_bin_textures = [p for p in path_bin_textures_iter if not p.name.endswith("rmb.bin")]
+            _populate_indexed_bin_textures_from_track(filtered_path_bin_textures, Path(context.scene.forza_last_track_folder), Path(context.scene.forza_last_ribbon_folder))
         return {'FINISHED'}
 
 class FORZA_OT_pick_track_folder(Operator):
@@ -137,7 +134,7 @@ class FORZA_OT_pick_track_folder(Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-    
+
 class FORZA_OT_pick_ribbon_folder(Operator):
     """Choose a folder and return its path"""
     bl_idname = "forza.pick_ribbon_folder"
@@ -158,7 +155,7 @@ class FORZA_OT_pick_ribbon_folder(Operator):
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-    
+
 class FORZA_OT_pick_texture_folder(Operator):
     """Choose a folder and return its path"""
     bl_idname = "forza.pick_texture_folder"
@@ -214,7 +211,7 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
         texture_files[i] = (pvs_texture, file_index, is_stx)
 
     # figure out which models need to be loaded
-    pvs_model_instances = [(i, model_instance) for i, model_instance in enumerate(pvs.models_instances) if context.scene.generate_lods or (model_instance.flags & (6 << 11)) == 0 or (model_instance.flags & (1 << 11)) != 0]
+    pvs_model_instances = [(i, model_instance) for i, model_instance in enumerate(pvs.models_instances) if model_instance.is_visible(context.scene)]
     pvs_model_instances.extend([(None, model_instance) for model_instance in pvs.lone_models_instances])
     unique_model_indexes = set([model_instance.model_index for _, model_instance in pvs_model_instances])
     models_to_load = [(model_index, pvs.models[model_index], F"{model_index:05d}") for model_index in unique_model_indexes]
@@ -255,12 +252,17 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
     model_collections = [None] * len(model_meshes)
 
     # for each mesh in model_meshes, add it to the scene
-    for i, (model_index, _, model_filename) in enumerate(models_to_load):
-        if model_meshes[model_index] is None:
+    for i, (model_index, pvs_model, model_filename) in enumerate(models_to_load):
+        if model_meshes[model_index] is not None:
+            collection = bpy.data.collections.new(f"{model_filename} {model_meshes[model_index][0].track_section.name}")
+            for mesh in model_meshes[model_index]:
+                _add_mesh_to_scene(context, mesh, collection)
+        elif context.scene.forza_import_bbox:
+            collection = bpy.data.collections.new(model_filename)
+        else:
             continue
-        collection = bpy.data.collections.new(F"{model_filename} {model_meshes[model_index][0].track_section.name}")
-        for mesh in model_meshes[model_index]:
-            _add_mesh_to_scene(context, mesh, collection)
+        if context.scene.forza_import_bbox:
+            _add_bbox_to_scene(context, pvs_model, collection, model_filename)
         master_collection.children.link(collection)
         model_collections[model_index] = collection
         if (i + 1) % 100 == 0 or i + 1 == len(models_to_load):
@@ -313,21 +315,19 @@ def _import_fm3(context: bpy.types.Context, track_path: Path, path_ribbon: Path)
     # compositing
     generate_blender_compositing(context.scene)
 
-def _populate_indexed_textures_from_track(path_textures, save_files: bool = False):
+def _populate_indexed_textures_from_track(path_textures: list[Path], save_files: bool = False):
     for i, path_texture in enumerate(path_textures):
-        filename = str(path_texture.resolve())
-        if not filename.endswith("_B.bix"):
-            img = Bix.get_image_from_bix(path_texture.resolve(), save_image=save_files)
-            texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
-            indexed_textures[texture_idx] = img
+        img = Bix.get_image_from_bix(path_texture, save_image=save_files)
+        texture_idx = int(convert_texture_name_to_decimal(str(path_texture.stem)))
+        indexed_textures[texture_idx] = img
         if (i + 1) % 100 == 0:
             print(f"[{i + 1}/{len(path_textures)}]")
             bpy.context.workspace.status_text_set(f"[{i + 1}/{len(path_textures)}] textures generated")
 
-def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, path_ribbon: str):
-    bin_path: Path = Path(track_path) / "bin"
-    textures_path: Path = bin_path / "textures"
-    path_ribbon_pvs: Path = next(Path(path_ribbon).glob("*.pvs"))
+def _populate_indexed_bin_textures_from_track(path_bin_textures: list[Path], track_path: Path, path_ribbon: Path):
+    bin_path = track_path / "bin"
+    textures_path = bin_path / "textures"
+    path_ribbon_pvs = next(path_ribbon.glob("*.pvs"))
     pvs = PVS.from_stream(BinaryStream.from_path(path_ribbon_pvs.resolve(), ">"), bin_path)
 
     known_stx_indexes = set()
@@ -349,7 +349,7 @@ def _populate_indexed_bin_textures_from_track(path_bin_textures, track_path, pat
         if dds is not None:
             image_filename = F"{file_name}.dds"
             image_filepath = textures_path / image_filename
-            with open(image_filepath.resolve(), 'wb') as f: 
+            with open(image_filepath.resolve(), 'wb') as f:
                 f.write(dds)
         else:
             print("Could not extract texture from .bin")
@@ -369,6 +369,17 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
     # uv
     generate_and_assign_uv_layers_to_mesh(blender_mesh, forza_mesh)
 
+    # attributes
+    if forza_mesh.vertices.tangent is not None:
+        layer = blender_mesh.attributes.new("TANGENT0", "FLOAT_VECTOR", "POINT")
+        layer.data.foreach_set("vector", forza_mesh.vertices.tangent.ravel())
+    if forza_mesh.vertices.binormal is not None:
+        layer = blender_mesh.attributes.new("BINORMAL0", "FLOAT_VECTOR", "POINT")
+        layer.data.foreach_set("vector", forza_mesh.vertices.binormal.ravel())
+    if forza_mesh.vertices.color is not None:
+        layer = blender_mesh.color_attributes.new("COLOR0", "FLOAT_COLOR", "POINT")
+        layer.data.foreach_set("color", forza_mesh.vertices.color.ravel())
+
     # material
     if context.scene.generate_mats:
         if context.scene.use_pregenerated_textures:
@@ -380,3 +391,14 @@ def _add_mesh_to_scene(context, forza_mesh, collection):
 
     collection.objects.link(obj)
 
+def _add_bbox_to_scene(context: bpy.types.Context, pvs_model: PVSModel, collection: bpy.types.Collection, model_filename: str):
+    if not context.scene.forza_import_bbox:
+        return
+
+    obj = bpy.data.objects.new(f"{model_filename} bbox", None)
+    obj.empty_display_type = "CUBE"
+    transform = Matrix(pvs_model.bbox_transform)
+    transform.transpose()
+    transform @= Matrix.Diagonal(pvs_model.bbox_scale)
+    obj.matrix_world = transform
+    collection.objects.link(obj)

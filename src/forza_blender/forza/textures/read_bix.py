@@ -7,77 +7,148 @@ import numpy as np
 from ..utils.deswizzle import Deswizzler
 
 class Bix():
-    def get_image_from_bix(filepath, save_image: bool = False):
+    def wrap_as_dds(data: bytes, d3d_format: int, width: int, height: int, levels: int, mip_0_size: int, is_cube: bool) -> bytes:
+        # Blender supports only DXT1, DXT3 and DXT5
+        d3d_to_fourcc = {
+            438305106: b"DXT1", # D3DFMT_DXT1
+            438337362: b"DXT1", # MAKESRGBFMT(D3DFMT_DXT1)
+            438337363: b"DXT3", # MAKESRGBFMT(D3DFMT_DXT3)
+            438305108: b"DXT5", # D3DFMT_DXT5
+            438337364: b"DXT5", # MAKESRGBFMT(D3DFMT_DXT5)
+        }
+        d3d_to_dxgi = {
+            # # DXGI_FORMAT_BC1_UNORM
+            # 438305106: 71, # D3DFMT_DXT1
+            # 438337362: 71, # MAKESRGBFMT(D3DFMT_DXT1)
+            # # DXGI_FORMAT_BC2_UNORM
+            # 438337363: 74, # MAKESRGBFMT(D3DFMT_DXT3)
+            # # DXGI_FORMAT_BC3_UNORM
+            # 438305108: 77, # D3DFMT_DXT5
+            # 438337364: 77, # MAKESRGBFMT(D3DFMT_DXT5)
+            # DXGI_FORMAT_BC4_UNORM
+            438305147: 80, # D3DFMT_DXT5A
+            438337403: 80, # MAKESRGBFMT(D3DFMT_DXT5A)
+            # DXGI_FORMAT_BC5_UNORM
+            438305137: 83, # D3DFMT_DXN
+            438337393: 83, # MAKESRGBFMT(D3DFMT_DXN)
+            # DXGI_FORMAT_B8G8R8A8_UNORM
+            405275014: 87, # D3DFMT_A8R8G8B8
+            # DXGI_FORMAT_B8G8R8X8_UNORM
+            673710470: 88, # D3DFMT_X8R8G8B8
+            673742726: 88, # MAKESRGBFMT(D3DFMT_X8R8G8B8)
+            673742470: 88, # D3DFMT_LIN_X8R8G8B8
+            # DXGI_FORMAT_R8_UNORM
+            671088898: 61, # D3DFMT_L8
+        }
+        is_dxt10 = d3d_format not in d3d_to_fourcc
+        if is_dxt10 and d3d_format not in d3d_to_dxgi:
+            print("Unsupported D3D format:", d3d_format)
+            return None
+
+        DDS_MAGIC = b"DDS "
+        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_MIPMAPCOUNT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x20000, 0x80000
+        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
+        if levels > 1:
+            flags |= DDSD_MIPMAPCOUNT
+        header = struct.pack("<I I I I I I I 44x",
+            124, flags, height, width, mip_0_size, 1, levels
+        )
+
+        DDPF_FOURCC = 0x4
+        fourcc = b"DX10" if is_dxt10 else d3d_to_fourcc[d3d_format]
+        pixelfmt = struct.pack("<I I 4s I I I I I", 32, DDPF_FOURCC, fourcc, 0, 0, 0, 0, 0)
+
+        DDSCAPS_COMPLEX, DDSCAPS_TEXTURE, DDSCAPS_MIPMAP = 0x8, 0x1000, 0x400000
+        caps = DDSCAPS_TEXTURE
+        if levels > 1:
+            caps |= DDSCAPS_COMPLEX | DDSCAPS_MIPMAP
+        elif is_cube:
+            caps |= DDSCAPS_COMPLEX
+        DDSCAPS2_CUBEMAP, DDSCAPS2_CUBEMAP_POSITIVEX, DDSCAPS2_CUBEMAP_NEGATIVEX, DDSCAPS2_CUBEMAP_POSITIVEY, DDSCAPS2_CUBEMAP_NEGATIVEY, DDSCAPS2_CUBEMAP_POSITIVEZ, DDSCAPS2_CUBEMAP_NEGATIVEZ = 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x4000, 0x8000
+        caps2 = 0
+        if is_cube:
+            caps2 |= DDSCAPS2_CUBEMAP | DDSCAPS2_CUBEMAP_POSITIVEX | DDSCAPS2_CUBEMAP_NEGATIVEX | DDSCAPS2_CUBEMAP_POSITIVEY | DDSCAPS2_CUBEMAP_NEGATIVEY | DDSCAPS2_CUBEMAP_POSITIVEZ | DDSCAPS2_CUBEMAP_NEGATIVEZ
+        header2 = struct.pack("<I I I I 4x", caps, caps2, 0, 0)
+
+        result = DDS_MAGIC + header + pixelfmt + header2
+        if is_dxt10:
+            # DDS_HEADER_DXT10
+            # resourceDimension=3 (TEXTURE2D), arraySize=1
+            dxgi_format = d3d_to_dxgi[d3d_format]
+            dxt10 = struct.pack("<I I I I I", dxgi_format, 3, 0, 1, 0)
+            result += dxt10
+        return result + data
+
+    def texture_to_dds(data: np.ndarray, d3d_format: int, width: int, height: int, levels: int, is_cube: bool, tiles: list):
+        endian = (d3d_format & 0xC0) >> 6
+        if endian == 1: # GPUENDIAN_8IN16
+            data = Bix.flip_byte_order_16bit(data)
+        elif endian == 2: # GPUENDIAN_8IN32
+            data = Bix.flip_byte_order_32bit(data)
+        elif endian != 0: # GPUENDIAN_NONE
+            raise RuntimeError("Unknown texture format endian")
+
+        faces = 6 if is_cube else 1
+        linear_mips = Deswizzler.get_linear_mips(data, d3d_format, width, height, faces, levels, tiles)
+        mip_0_size = len(linear_mips[0])
+        linear_data = np.concatenate(linear_mips).tobytes()
+        return Bix.wrap_as_dds(linear_data, d3d_format, width, height, levels, mip_0_size, is_cube)
+
+    def get_image_from_bix(path: Path, save_image: bool = False):
         # note: each texture (in FM3 at least) is comprised of two files. 
-        # the second file ends with "_B". this file contains the actual pixels I think.
-        path = Path(filepath)
+        # The file with the "_B" suffix stores the mip 0. The header and the remaining mips are stored in a separate file.
         directory = path.parent
         filename = path.stem
         filetype = path.suffix 
 
         if filename.endswith("_B"):
-            raise ValueError("Don't load the `_B` version fo a texture file.")
+            raise ValueError("Don't load the `_B` version of a texture file.")
 
-        # get image a and b names
-        file_a_name: str = filename + filetype
-        file_b_name: str = filename + "_B" + filetype
+        # get file names
+        file_chain_name = f"{filename}{filetype}"
+        file_base_name = f"{filename}_B{filetype}"
 
-        # image a and b paths
-        file_a_path: str = directory / file_a_name
-        file_b_path: str = directory / file_b_name
+        # file paths
+        file_chain_path = directory / file_chain_name
+        file_base_path = directory / file_base_name
 
-        width: int = None
-        height: int = None
-        levels: int = None
-        format: int = None
-        total_size: int = None
-        main_size: int = None
-
-        # read file `a` (Big Endian format)
-        with open(file_a_path, "rb") as f:
-            num = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            if num != 1112102960 and num != 1112102961:
+        # read chain file (Big Endian format)
+        with open(file_chain_path, "rb") as f:
+            buf = f.read(28)
+            num = struct.unpack_from(">I", buf)[0]
+            if num != 1112102960 and num != 1112102961: # BIX0, BIX1
                 raise TypeError("Unrecognized bix file format. " + str(num))
 
-            width = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            height = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            levels = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            format = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            total_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
-            main_size = int.from_bytes(f.read(4), byteorder="big", signed=False)
+            width = struct.unpack_from(">I", buf, 4)[0]
+            height = struct.unpack_from(">I", buf, 8)[0]
+            levels = struct.unpack_from(">I", buf, 12)[0]
+            d3d_format = struct.unpack_from(">I", buf, 16)[0]
+            total_size = struct.unpack_from(">I", buf, 20)[0]
+            base_size = struct.unpack_from(">I", buf, 24)[0]
 
-        # read file `b`
-        dumped_image_data = np.fromfile(file_b_path, np.uint8)
+            tiles = Deswizzler.get_tiles(d3d_format, width, height, levels)
+            tiles_base_size = Deswizzler.get_tiles_base_size(tiles, False)
+            tiles_total_size = Deswizzler.get_tiles_total_size(tiles, False)
 
-        endian = (format & 0xC0) >> 6
-        if endian == 1: # GPUENDIAN_8IN16
-            dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-        elif endian == 2: # GPUENDIAN_8IN32
-            dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-        elif endian != 0: # GPUENDIAN_NONE
-            raise RuntimeError("Unknown texture format endian")
+            if num == 1112102960: # BIX0
+                if tiles_base_size != base_size:
+                    raise RuntimeError("tiles_base_size != base_size")
+                if tiles_total_size != total_size:
+                    raise RuntimeError("tiles_total_size != total_size")
+            else:
+                if tiles_base_size < base_size:
+                    raise RuntimeError("tiles_base_size < base_size")
+                if tiles_total_size < total_size:
+                    raise RuntimeError("tiles_total_size < total_size")
 
-        blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, width, height, format, levels)
-        blocks = blocks.tobytes()
-        match format:
-            case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
-                dds = Bix.wrap_as_dds_dx10_bc(71, blocks, width, height) # DXGI_FORMAT_BC1_UNORM
-            case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
-                dds = Bix.wrap_as_dds_dx10_bc(74, blocks, width, height) # DXGI_FORMAT_BC2_UNORM
-            case 438305108 | 438337364: # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
-                dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, width, height)
-            case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
-                dds = Bix.wrap_as_dds_dx10_bc(80, blocks, width, height) # DXGI_FORMAT_BC4_UNORM
-            case 438305137: # D3DFMT_DXN
-                dds = Bix.wrap_as_dds_dx10_bc(83, blocks, width, height) # DXGI_FORMAT_BC5_UNORM
-            case 673710470: # D3DFMT_X8R8G8B8
-                dds = Bix.wrap_as_dds_dx10_bc(88, blocks, width, height) # DXGI_FORMAT_B8G8R8X8_UNORM
-            case 671088898: # D3DFMT_L8
-                dds = Bix.wrap_as_dds_dx10_bc(61, blocks, width, height) # DXGI_FORMAT_R8_UNORM
-            case _:
-                print("Unsupported D3D format:", format)
-                return None
-                #raise ValueError("Unsupported deswizzling format!")
+            texture_data = np.empty(tiles_total_size, np.uint8)
+            f.readinto(texture_data[tiles_base_size:tiles_base_size + (total_size - base_size)])
+
+        # read base file
+        with open(file_base_path, "rb") as f:
+            f.readinto(texture_data[:base_size])
+
+        dds = Bix.texture_to_dds(texture_data, d3d_format, width, height, levels, False, tiles)
 
         if save_image:
             image_filename = "textures/" + filename + ".dds"
@@ -110,59 +181,6 @@ class Bix():
                 except Exception:
                     pass
             return img
-
-    def wrap_as_dds_dx10_bc(fmt_dxgi: int, blocks_linear: bytes, width: int, height: int) -> bytes:
-        # DXGI_FORMAT values: BC1=71, BC2=74, BC3=77, BC4U=80, BC5U=83, BC6H_UF16=95, BC7=98
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-        # FourCC 'DX10'
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, 0x4, b'DX10', 0, 0, 0, 0, 0)
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-        # DDS_HEADER_DXT10
-        # resourceDimension=3 (TEXTURE2D), arraySize=1
-        dxt10 = struct.pack('<I I I I I', fmt_dxgi, 3, 0, 1, 0)
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + dxt10 + blocks_linear
-
-    def wrap_as_dds_dx5_bc3_linear(blocks_linear: bytes, width: int, height: int) -> bytes:
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-        DDPF_FOURCC = 0x4
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, DDPF_FOURCC, b'DXT5', 0, 0, 0, 0, 0)
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + blocks_linear
-    
-    def wrap_as_dds_dx10_bc7(blocks_linear: bytes, width: int, height: int) -> bytes:
-        DDS_MAGIC = b'DDS '
-        DDSD_CAPS, DDSD_HEIGHT, DDSD_WIDTH, DDSD_PIXELFORMAT, DDSD_LINEARSIZE = 0x1, 0x2, 0x4, 0x1000, 0x80000
-        flags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT | DDSD_LINEARSIZE
-
-        # Standard DDS header (no mipmaps)
-        header = struct.pack('<I I I I I I I 11I',
-            124, flags, height, width, len(blocks_linear), 0, 1, *([0]*11)
-        )
-
-        # Pixel format = 'DX10' extension
-        pixelfmt = struct.pack('<I I 4s I I I I I', 32, 0x4, b'DX10', 0, 0, 0, 0, 0)
-
-        # Caps
-        caps = struct.pack('<I I I I', 0x1000, 0, 0, 0)  # DDSCAPS_TEXTURE
-        reserved2 = b'\x00\x00\x00\x00'
-
-        # DDS_HEADER_DXT10: DXGI_FORMAT_BC7_UNORM = 98, TEXTURE2D=3, arraySize=1
-        dxt10 = struct.pack('<I I I I I', 98, 3, 0, 1, 0)
-
-        return DDS_MAGIC + header + pixelfmt + caps + reserved2 + dxt10 + blocks_linear
 
     def _compact1by1(v: int) -> int:
         v &= 0x55555555

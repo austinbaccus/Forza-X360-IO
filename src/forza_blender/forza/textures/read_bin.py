@@ -245,40 +245,17 @@ class CAFF:
         # convert texture.pixel_data into dds
         dds_list = [None] * len(textures)
         for i, texture in enumerate(textures):
-            pixel_data_size = Deswizzler.calc_texture_size(texture.texture_format, texture.width, texture.height)
-            dumped_image_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
-
-            endian = (texture.texture_format & 0xC0) >> 6
-            if endian == 1: # GPUENDIAN_8IN16
-                dumped_image_data = Bix.flip_byte_order_16bit(dumped_image_data)
-            elif endian == 2: # GPUENDIAN_8IN32
-                dumped_image_data = Bix.flip_byte_order_32bit(dumped_image_data)
-            elif endian != 0: # GPUENDIAN_NONE
-                raise RuntimeError("Unknown texture format endian")
-
-            blocks = Deswizzler.XGUntileSurfaceToLinearTexture(dumped_image_data, texture.width, texture.height, texture.texture_format, texture.levels)
-            blocks = blocks.tobytes()
-            match texture.texture_format:
-                case 438305106 | 438337362: # D3DFMT_DXT1, MAKESRGBFMT(D3DFMT_DXT1)
-                    dds = Bix.wrap_as_dds_dx10_bc(71, blocks, texture.width, texture.height) # DXGI_FORMAT_BC1_UNORM
-                case 438337363: # MAKESRGBFMT(D3DFMT_DXT3)
-                    dds = Bix.wrap_as_dds_dx10_bc(74, blocks, texture.width, texture.height) # DXGI_FORMAT_BC2_UNORM
-                case 438305108 | 438337364 : # D3DFMT_DXT5, MAKESRGBFMT(D3DFMT_DXT5)
-                    dds = Bix.wrap_as_dds_dx5_bc3_linear(blocks, texture.width, texture.height)
-                case 438305147 | 438337403: # D3DFMT_DXT5A, MAKESRGBFMT(D3DFMT_DXT5A)
-                    dds = Bix.wrap_as_dds_dx10_bc(80, blocks, texture.width, texture.height) # DXGI_FORMAT_BC4_UNORM
-                case 438305137: # D3DFMT_DXN
-                    dds = Bix.wrap_as_dds_dx10_bc(83, blocks, texture.width, texture.height) # DXGI_FORMAT_BC5_UNORM
-                case 405275014: # D3DFMT_A8R8G8B8
-                    dds = Bix.wrap_as_dds_dx10_bc(87, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8A8_UNORM
-                case 673710470 | 673742470 | 673742726: # D3DFMT_X8R8G8B8, D3DFMT_LIN_X8R8G8B8, MAKESRGBFMT(D3DFMT_X8R8G8B8)
-                    dds = Bix.wrap_as_dds_dx10_bc(88, blocks, texture.width, texture.height) # DXGI_FORMAT_B8G8R8X8_UNORM
-                case 671088898: # D3DFMT_L8
-                    dds = Bix.wrap_as_dds_dx10_bc(61, blocks, texture.width, texture.height) # DXGI_FORMAT_R8_UNORM
-                case _:
-                    print("Unsupported D3D format:", texture.texture_format)
-                    dds = None
-            dds_list[i] = dds
+            # if texture.mip_offset != 0xFFFFFFFF:
+            #     print("Unexpected .bin texture mip_offset")
+            #     continue
+            if texture.texture_type != 0 and texture.texture_type != 2: # TEX_DIRECT, TEX_CUBE
+                print("Unexpected .bin texture type")
+                continue
+            is_cube = texture.texture_type == 2
+            tiles = Deswizzler.get_tiles(texture.texture_format, texture.width, texture.height, texture.levels)
+            pixel_data_size = Deswizzler.get_tiles_total_size(tiles, is_cube)
+            texture_data = np.frombuffer(texture.read_pixel_data(pixel_data_size), np.uint8)
+            dds_list[i] = Bix.texture_to_dds(texture_data, texture.texture_format, texture.width, texture.height, texture.levels, is_cube, tiles)
 
         return dds_list
 

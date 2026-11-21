@@ -2,16 +2,22 @@ import numpy as np
 from forza_blender.forza.shaders.read_shader import VertexElement
 
 class ForzaVertex:
-    def __init__(self, position, normal, texcoords):
+    def __init__(self, position, normal, texcoords, tangent, binormal, color):
         self.position = position
         self.normal = normal
         self.texcoords = texcoords
+        self.tangent = tangent
+        self.binormal = binormal
+        self.color = color
 
     @staticmethod
     def from_buffer(buf: bytes, elements: list[VertexElement]):
         has_position = False
         has_normal = False
         has_texcoord = [False] * 3
+        has_tangent = False
+        has_binormal = False
+        has_color = False
         dtype_columns = []
         gap_index = 0
         for element in elements:
@@ -51,20 +57,48 @@ class ForzaVertex:
                     format = ">2u2"
                 else:
                     raise RuntimeError("Unexpected TEXCOORD semantic type.")
-            else:
-                if element.type == 1712519 or element.type == 1583238: # D3DDECLTYPE_DEC4N, D3DDECLTYPE_D3DCOLOR
-                    dtype_columns.append((F"gap{gap_index}", np.void, 4))
-                    gap_index += 1
+            elif element.usage == 6:
+                if element.usage_index == 0: # TANGENT0
+                    has_tangent = True
+                    name = "tangent"
                 else:
-                    raise RuntimeError("Unknown semantic type.")
-                continue
+                    raise RuntimeError("Unexpected TANGENT semantic number.")
+                if element.type == 1712519: # D3DDECLTYPE_DEC4N
+                    format = ">u4"
+                else:
+                    raise RuntimeError("Unexpected TANGENT semantic type.")
+            elif element.usage == 7:
+                if element.usage_index == 0: # BINORMAL0
+                    has_binormal = True
+                    name = "binormal"
+                else:
+                    raise RuntimeError("Unexpected BINORMAL semantic number.")
+                if element.type == 1712519: # D3DDECLTYPE_DEC4N
+                    format = ">u4"
+                else:
+                    raise RuntimeError("Unexpected BINORMAL semantic type.")
+            elif element.usage == 10:
+                if element.usage_index == 0: # COLOR0
+                    has_color = True
+                    name = "color"
+                else:
+                    raise RuntimeError("Unexpected COLOR semantic number.")
+                if element.type == 1583238: # D3DDECLTYPE_D3DCOLOR
+                    format = ">4u1"
+                else:
+                    raise RuntimeError("Unexpected COLOR semantic type.")
+            else:
+                raise RuntimeError("Unknown semantic type.")
             dtype_columns.append((name, format))
         if not has_position:
             raise RuntimeError("No POSITION0 semantic.")
         vertex = np.frombuffer(buf, np.dtype(dtype_columns))
         normal = ForzaVertex._get_normalized_101010(vertex["normal"]) if has_normal else None
         texcoords = [vertex[F"texcoord{i}"] / 65535 if has_texcoord[i] else None for i in range(3)]
-        return ForzaVertex(vertex["position"], normal, texcoords)
+        tangent = ForzaVertex._get_normalized_101010(vertex["tangent"]) if has_tangent else None
+        binormal = ForzaVertex._get_normalized_101010(vertex["binormal"]) if has_binormal else None
+        color = vertex["color"][:, (1, 2, 3, 0)] / 255 if has_color else None # ARGB
+        return ForzaVertex(vertex["position"], normal, texcoords, tangent, binormal, color)
 
     # minimal guessing to read meshes without shaders
     @staticmethod

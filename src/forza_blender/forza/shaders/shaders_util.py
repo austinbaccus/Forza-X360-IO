@@ -47,18 +47,27 @@ def generate_image_texture_nodes_for_material(forza_mesh: ForzaMesh, track_folde
         texture_node.image = loaded_texture_image
         texture_node.image.colorspace_settings.name = "Non-Color"
 
+        in_uv = texture_node.inputs["Vector"]
+        out_rgb = texture_node.outputs["Color"]
+
         # if the image is from .stx.bin, create UV mapping node
         if is_stx and pvs_texture.u_scale != 1.0 and pvs_texture.v_scale != 1.0 and pvs_texture.u_translate != 0.0 and pvs_texture.v_translate != 0.0:
             uv_node = nodes.new("ShaderNodeVectorMath")
             uv_node.operation = "MULTIPLY_ADD"
             uv_node.inputs["Vector_001"].default_value = (pvs_texture.u_scale, pvs_texture.v_scale, 0)
             uv_node.inputs["Vector_002"].default_value = (pvs_texture.u_translate, -(pvs_texture.v_scale + pvs_texture.v_translate), 0)
-            links.new(uv_node.outputs["Vector"], texture_node.inputs["Vector"])
+            links.new(uv_node.outputs["Vector"], in_uv)
             in_uv = uv_node.inputs["Vector"]
-        else:
-            in_uv = texture_node.inputs["Vector"]
 
-        textures[i] = NodeWrapperTexture([texture_node], in_uv, texture_node.outputs["Color"], texture_node.outputs["Alpha"])
+        # PostProcess.fxobj, technique RoadDetailRotateAndBlurRGB
+        if (pvs_texture.flags & (0xF << 4)) != 0 and bpy.context.scene.forza_gray_road_texture: # Flag_RoadDetailMask
+            grayscale_node = nodes.new("ShaderNodeVectorMath")
+            grayscale_node.operation = "DOT_PRODUCT"
+            grayscale_node.inputs["Vector_001"].default_value = (0.2125, 0.7154, 0.0721)
+            links.new(out_rgb, grayscale_node.inputs["Vector"])
+            out_rgb = grayscale_node.outputs["Value"]
+
+        textures[i] = NodeWrapperTexture([texture_node], in_uv, out_rgb, texture_node.outputs["Alpha"])
 
     return textures
 
@@ -141,16 +150,17 @@ def attach_mix_node(mat, x, y, diffuse_node, shadow_node, output_node = None, ou
     links.new(mix_darken_node.inputs[2], mix_darken_node.inputs[2])
     if output_node is not None: links.new(mix_darken_node.outputs[0], output_node.inputs[output_idx_input_idx])
 
-def add_opacity(mat, bsdf, output, transparent_node):
+def add_opacity(mat, bsdf, output, transparency_socket):
     nodes, links = mat.node_tree.nodes, mat.node_tree.links
 
+    # transparent BSDF
     transparent_bsdf = nodes.new("ShaderNodeBsdfTransparent")
-    transparency_mix_node = nodes.new("ShaderNodeMixShader")
 
-    # links
-    links.new(transparent_node.out_a, transparency_mix_node.inputs["Fac"])
+    # mix shader
+    transparency_mix_node = nodes.new("ShaderNodeMixShader")
+    links.new(transparency_socket, transparency_mix_node.inputs["Fac"])
     links.new(transparent_bsdf.outputs["BSDF"], transparency_mix_node.inputs["Shader"])
     links.new(bsdf.out_shader, transparency_mix_node.inputs["Shader_001"])
-    links.new(transparency_mix_node.outputs["Shader"], output.inputs["Surface"])
 
-    return mat
+    # material output
+    links.new(transparency_mix_node.outputs["Shader"], output.inputs["Surface"])

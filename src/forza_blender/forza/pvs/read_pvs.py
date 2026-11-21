@@ -1,7 +1,11 @@
+import bpy
 from pathlib import Path
 from .pvs_util import *
 
 game_series = 0 # 0 - auto, 1 - Motorsport, 2 - Horizon
+
+# TrackSettings.xml
+sky_offset_z = -385 # SkyboxHeightOffset
 
 class PVSHeader:
     def __init__(self, version: int):
@@ -152,32 +156,57 @@ class PVSModelInstance:
             ]
         return PVSModelInstance(model_index, parent_lod_model_instance_offset, flags, texture, model_data, transform)
 
+    def is_visible(self, scene: bpy.types.Scene):
+        # SubsetMask_LOD0/1/2
+        if not scene.generate_lods and (self.flags & (1 << 11)) == 0 and (self.flags & (6 << 11)) != 0:
+            return False
+        if game_series == 2:
+            if (self.flags & (1 << 23)) != 0: # SubsetMask_ShadowOnly
+                return False
+            if (self.flags & (1 << 24)) != 0: # SubsetMask_CubemapOnly
+                return False
+        return True
+
 class PVSModel:
-    def __init__(self, model_index, textures, shaders):
+    def __init__(self, model_index: int, textures: list[int], shaders: list[int], bbox_transform: list[list[int]], bbox_scale: list[int]):
         self.model_index = model_index
         self.textures = textures
         self.shaders = shaders
+        self.bbox_transform = bbox_transform
+        self.bbox_scale = bbox_scale
 
     @staticmethod
-    def from_stream(stream: BinaryStream, model_index):
+    def from_stream(stream: BinaryStream, model_index: int):
         textures_references_length = stream.read_u32()
         textures = [stream.read_u32() for _ in range(textures_references_length)]
         shader_length = stream.read_u32()
         shaders = [stream.read_u32() for _ in range(shader_length)]
         if game_series == 2:
-            stream.skip(12 * 4 + 12)
+            t = [[stream.read_f32() for _ in range(3)] for _ in range(4)]
+            bbox_transform = [
+                [t[0][0], t[0][1], t[0][2], 0],
+                [t[1][0], t[1][1], t[1][2], 0],
+                [t[2][0], t[2][1], t[2][2], 0],
+                [t[3][0], t[3][1], t[3][2], 1]
+            ]
+            bbox_scale = [stream.read_f32() for _ in range(3)]
+            bbox_scale.append(1)
         else:
-            stream.skip(16 * 4 + 16)
-        return PVSModel(model_index, textures, shaders)
+            bbox_transform = [[stream.read_f32() for _ in range(4)] for _ in range(4)]
+            bbox_scale = [stream.read_f32() for _ in range(3)]
+            bbox_scale.append(1)
+            stream.skip(4)
+        return PVSModel(model_index, textures, shaders, bbox_transform, bbox_scale)
 
 class PVSTexture:
-    def __init__(self, texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate):
+    def __init__(self, texture_file_name: int, index_in_stx_bin: int, u_scale: float, v_scale: float, u_translate: float, v_translate: float, flags: int):
         self.texture_file_name = texture_file_name
         self.index_in_stx_bin = index_in_stx_bin
         self.u_scale = u_scale
         self.v_scale = v_scale
         self.u_translate = u_translate
         self.v_translate = v_translate
+        self.flags = flags
 
     @staticmethod
     def from_stream(stream: BinaryStream):
@@ -187,9 +216,9 @@ class PVSTexture:
         v_scale = stream.read_f32()
         u_translate = stream.read_f32()
         v_translate = stream.read_f32()
-        stream.skip(4)
+        flags = stream.read_u32()
 
-        return PVSTexture(texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate)
+        return PVSTexture(texture_file_name, index_in_stx_bin, u_scale, v_scale, u_translate, v_translate, flags)
 
 class PVS:
     def __init__(self, header: PVSHeader, models_instances: list[PVSModelInstance], models: list[PVSModel], textures: list[PVSTexture], shaders: list[str], sky_model_instance: PVSModelInstance | None, sky_model: PVSModel | None, lone_models_instances: list[PVSModelInstance], prefix: str):
@@ -245,6 +274,7 @@ class PVS:
             stream.skip(2 * unk2_length)
         else:
             sky_model_instance = PVSModelInstance.from_stream(stream, header.version)
+            sky_model_instance.transform[1][3] += sky_offset_z
             sky_model = PVSModel.from_stream(stream, -1)
         lone_models_instances_length = stream.read_u32()
         lone_models_instances = [PVSModelInstance.from_stream(stream, header.version) for _ in range(lone_models_instances_length)]
