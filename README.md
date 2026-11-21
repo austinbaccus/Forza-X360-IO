@@ -30,6 +30,13 @@ All Xbox 360 generation Forza games, but FM2. Feature score ? of 5.
 |Forza Horizon 1|2|1|1|
 |Forza Horizon 2|2|1|1|
 
+### Compare: FM3, Rally di Positano - Full Circuit
+Game|Blender
+-|-
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/be7faad9-9b53-458b-92f9-6548c6227a4b" />|<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/a725c070-b333-4460-96f1-f8dc7af5f6cc" />
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/e845fa69-9797-4582-a345-0d719a4a39eb" />|<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/9eb6408f-7817-404f-87fe-3deb4501bd56" />
+<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/50359531-dcf4-4611-b9ce-6a1afdcc595f" />|<img width="1280" height="720" alt="image" src="https://github.com/user-attachments/assets/0f2ebacb-9e8d-445d-8f9e-edb458134a40" />
+
 ### Credits
 Developers
 * [@Doliman100 (Anton Dorozhkin)](https://github.com/Doliman100)
